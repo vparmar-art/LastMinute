@@ -25,3 +25,73 @@ doc/api/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+
+backend/app.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+env/
+venv/
+ENV/
+.env/
+.venv/
+.env.bak/
+.envrc
+
+# Django stuff
+*.log
+*.pot
+*.pyc
+local_settings.py
+db.sqlite3
+media/
+staticfiles/
+static_root/
+static/
+
+# VS Code / IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Coverage / testing
+.coverage
+.tox/
+htmlcov/
+coverage.xml
+
+# MyPy / type checker
+.mypy_cache/
+.dmypy.json
+.pyre/
+
+# Pytest
+.pytest_cache/
+
+# Docker
+*.pid
+
+# Node / front-end (if you use npm/yarn for admin or dashboard UI)
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Zappa (if you're deploying Django serverless)
+.zappa/
