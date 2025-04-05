@@ -1,0 +1,42 @@
+INFO 2025-04-05 09:16:30,656 views OTP generated for phone number: 8141254708
+DEBUG 2025-04-05 09:16:30,656 views Generated OTP: 2717
+INFO 2025-04-05 09:16:30,656 views Simulated sending OTP to 8141254708
+INFO 2025-04-05 09:16:37,616 views OTP verification attempt for phone number: 8141254708
+INFO 2025-04-05 09:16:37,623 views OTP verified successfully for phone number: 8141254708
+INFO 2025-04-05 09:16:37,624 views Existing user retrieved for phone number: 8141254708
+INFO 2025-04-05 09:16:37,625 views Token generated for user: 8141254708 a300a9baaa7590ec99c021bccebc7b9ccd02fe0d
+INFO 2025-04-05 09:31:49,086 views OTP generated for phone number: 8141254709
+DEBUG 2025-04-05 09:31:49,087 views Generated OTP: 7137
+INFO 2025-04-05 09:31:49,087 views Simulated sending OTP to 8141254709
+INFO 2025-04-05 09:33:37,203 views OTP verification attempt for phone number: 8141254709
+INFO 2025-04-05 09:33:37,214 views OTP verified successfully for phone number: 8141254709
+INFO 2025-04-05 09:33:37,218 views New user created for phone number: 8141254709
+INFO 2025-04-05 09:33:37,220 views Token generated for user: 8141254709 b9061c25b3e52dd507c8f60b7db547857a917c83
+INFO 2025-04-05 09:50:32,461 views OTP generated for phone number: 8141254708
+DEBUG 2025-04-05 09:50:32,461 views Generated OTP: 3153
+INFO 2025-04-05 09:50:32,461 views Simulated sending OTP to 8141254708
+INFO 2025-04-05 09:50:39,638 views OTP verification attempt for phone number: 8141254708
+INFO 2025-04-05 09:50:39,640 views OTP verified successfully for phone number: 8141254708
+INFO 2025-04-05 09:50:39,641 views Existing user retrieved for phone number: 8141254708
+INFO 2025-04-05 09:50:39,641 views Token generated for user: 8141254708 a300a9baaa7590ec99c021bccebc7b9ccd02fe0d
+INFO 2025-04-05 09:52:46,427 views OTP generated for phone number: 8141254708
+DEBUG 2025-04-05 09:52:46,428 views Generated OTP: 3613
+INFO 2025-04-05 09:52:46,428 views Simulated sending OTP to 8141254708
+INFO 2025-04-05 09:52:52,140 views OTP verification attempt for phone number: 8141254708
+INFO 2025-04-05 09:52:52,145 views OTP verified successfully for phone number: 8141254708
+INFO 2025-04-05 09:52:52,146 views Existing user retrieved for phone number: 8141254708
+INFO 2025-04-05 09:52:52,147 views Token generated for user: 8141254708 a300a9baaa7590ec99c021bccebc7b9ccd02fe0d
+INFO 2025-04-05 09:55:37,726 views OTP generated for phone number: 8141254708
+DEBUG 2025-04-05 09:55:37,726 views Generated OTP: 5630
+INFO 2025-04-05 09:55:37,726 views Simulated sending OTP to 8141254708
+INFO 2025-04-05 09:55:41,920 views OTP verification attempt for phone number: 8141254708
+INFO 2025-04-05 09:55:41,922 views OTP verified successfully for phone number: 8141254708
+INFO 2025-04-05 09:55:41,923 views Existing user retrieved for phone number: 8141254708
+INFO 2025-04-05 09:55:41,924 views Token generated for user: 8141254708 a300a9baaa7590ec99c021bccebc7b9ccd02fe0d
+INFO 2025-04-05 10:05:00,531 views OTP generated for phone number: 8141254708
+DEBUG 2025-04-05 10:05:00,532 views Generated OTP: 7545
+INFO 2025-04-05 10:05:00,532 views Simulated sending OTP to 8141254708
+INFO 2025-04-05 10:05:05,717 views OTP verification attempt for phone number: 8141254708
+INFO 2025-04-05 10:05:05,719 views OTP verified successfully for phone number: 8141254708
+INFO 2025-04-05 10:05:05,719 views Existing user retrieved for phone number: 8141254708
+INFO 2025-04-05 10:05:05,720 views Token generated for user: 8141254708 a300a9baaa7590ec99c021bccebc7b9ccd02fe0d

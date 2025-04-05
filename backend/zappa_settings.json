@@ -1,0 +1,18 @@
+{
+    "dev": {
+        "app_function": "services.wsgi.application",
+        "django_settings": "services.settings",
+        "aws_region": "us-east-1",
+        "exclude": [
+            "boto3",
+            "dateutil",
+            "botocore",
+            "s3transfer",
+            "concurrent"
+        ],
+        "profile_name": null,
+        "project_name": "services",
+        "runtime": "python3.12",
+        "s3_bucket": "zappa-deployments-last-minute"
+    }
+}
