@@ -94,18 +94,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _startCooldownTimer() {
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 1));
-      if (_resendCooldown > 0) {
-        setState(() {
-          _resendCooldown--;
-        });
-        return true;
-      }
-      return false;
-    });
-  }
+void _startCooldownTimer() {
+  Future.doWhile(() async {
+    await Future.delayed(const Duration(seconds: 1));
+    if (!mounted) return false;
+
+    if (_resendCooldown > 0) {
+      setState(() {
+        _resendCooldown--;
+      });
+      return true;
+    }
+    return false;
+  });
+}
 
   @override
   Widget build(BuildContext context) {

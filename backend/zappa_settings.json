@@ -1,7 +1,7 @@
 {
     "dev": {
-        "app_function": "services.wsgi.application",
-        "django_settings": "services.settings",
+        "app_function": "main.wsgi.application",
+        "django_settings": "main.settings",
         "aws_region": "us-east-1",
         "exclude": [
             "boto3",
@@ -11,7 +11,7 @@
             "concurrent"
         ],
         "profile_name": null,
-        "project_name": "services",
+        "project_name": "main",
         "runtime": "python3.12",
         "s3_bucket": "zappa-deployments-last-minute"
     }
