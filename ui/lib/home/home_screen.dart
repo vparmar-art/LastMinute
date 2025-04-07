@@ -20,8 +20,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   GoogleMapController? _mapController;
   LatLng? _currentLocation;
-  List<Marker> _markers = [];
+  Marker? _fromMarker;
+  Marker? _toMarker;
   List<Polyline> _polylines = [];
+
+  LatLng? _fromLatLng;
+  LatLng? _toLatLng;
 
   final TextEditingController _fromController = TextEditingController();
   final TextEditingController _toController = TextEditingController();
@@ -35,7 +39,6 @@ class _HomeScreenState extends State<HomeScreen> {
   late places_sdk.FlutterGooglePlacesSdk _places;
 
   String? _token;
-  bool _isValidSelection = false;
   final String googleApiKey = 'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II';
 
   @override
@@ -44,6 +47,24 @@ class _HomeScreenState extends State<HomeScreen> {
     _places = places_sdk.FlutterGooglePlacesSdk(googleApiKey);
     _loadToken();
     _determinePosition();
+
+    _fromController.addListener(() {
+      if (_fromController.text.isNotEmpty) {
+        setState(() {
+          _fromLatLng = null;
+          _fromMarker = null;
+        });
+      }
+    });
+
+    _toController.addListener(() {
+      if (_toController.text.isNotEmpty) {
+        setState(() {
+          _toLatLng = null;
+          _toMarker = null;
+        });
+      }
+    });
   }
 
   Future<void> _loadToken() async {
@@ -74,14 +95,6 @@ class _HomeScreenState extends State<HomeScreen> {
       final place = placemarks.first;
       _fromController.text = "${place.name}, ${place.locality}, ${place.administrativeArea}";
     }
-
-    _markers.add(
-      Marker(
-        markerId: const MarkerId('current'),
-        position: _currentLocation!,
-        infoWindow: const InfoWindow(title: 'Your Location'),
-      ),
-    );
 
     setState(() {});
 
@@ -129,7 +142,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _toController.text = suggestion;
       _toSuggestions.clear();
       FocusScope.of(context).unfocus();
-      _drawRoute(); // Automatically draw route after selecting destination
     }
 
     final result = await _places.findAutocompletePredictions(suggestion);
@@ -148,40 +160,32 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
 
-        _markers.add(
-          Marker(
-            markerId: MarkerId(suggestion),
-            position: latLng,
-            infoWindow: InfoWindow(title: suggestion),
-          ),
+        final marker = Marker(
+          markerId: MarkerId(suggestion),
+          position: latLng,
+          infoWindow: InfoWindow(title: suggestion),
         );
 
         setState(() {
-          _isValidSelection = _fromController.text.isNotEmpty && _toController.text.isNotEmpty;
+          if (isFrom) {
+            _fromLatLng = latLng;
+            _fromMarker = marker;
+          } else {
+            _toLatLng = latLng;
+            _toMarker = marker;
+          }
         });
       }
     }
+
     _polylines.clear();
   }
 
   Future<void> _drawRoute() async {
-    if (_fromController.text.isEmpty || _toController.text.isEmpty) return;
-
-    final fromResult = await _places.findAutocompletePredictions(_fromController.text);
-    final toResult = await _places.findAutocompletePredictions(_toController.text);
-
-    if (fromResult.predictions.isEmpty || toResult.predictions.isEmpty) return;
-
-    final fromPlace = await _places.fetchPlace(fromResult.predictions.first.placeId,
-        fields: [places_sdk.PlaceField.Location]);
-    final toPlace = await _places.fetchPlace(toResult.predictions.first.placeId,
-        fields: [places_sdk.PlaceField.Location]);
-
-    final fromLatLng = LatLng(fromPlace.place!.latLng!.lat, fromPlace.place!.latLng!.lng);
-    final toLatLng = LatLng(toPlace.place!.latLng!.lat, toPlace.place!.latLng!.lng);
+    if (_fromLatLng == null || _toLatLng == null) return;
 
     final url =
-        "https://maps.googleapis.com/maps/api/directions/json?origin=${fromLatLng.latitude},${fromLatLng.longitude}&destination=${toLatLng.latitude},${toLatLng.longitude}&key=$googleApiKey";
+        "https://maps.googleapis.com/maps/api/directions/json?origin=${_fromLatLng!.latitude},${_fromLatLng!.longitude}&destination=${_toLatLng!.latitude},${_toLatLng!.longitude}&key=$googleApiKey";
 
     final response = await http.get(Uri.parse(url));
     final data = json.decode(response.body);
@@ -209,12 +213,12 @@ class _HomeScreenState extends State<HomeScreen> {
       CameraUpdate.newLatLngBounds(
         LatLngBounds(
           southwest: LatLng(
-            fromLatLng.latitude < toLatLng.latitude ? fromLatLng.latitude : toLatLng.latitude,
-            fromLatLng.longitude < toLatLng.longitude ? fromLatLng.longitude : toLatLng.longitude,
+            _fromLatLng!.latitude < _toLatLng!.latitude ? _fromLatLng!.latitude : _toLatLng!.latitude,
+            _fromLatLng!.longitude < _toLatLng!.longitude ? _fromLatLng!.longitude : _toLatLng!.longitude,
           ),
           northeast: LatLng(
-            fromLatLng.latitude > toLatLng.latitude ? fromLatLng.latitude : toLatLng.latitude,
-            fromLatLng.longitude > toLatLng.longitude ? fromLatLng.longitude : toLatLng.longitude,
+            _fromLatLng!.latitude > _toLatLng!.latitude ? _fromLatLng!.latitude : _toLatLng!.latitude,
+            _fromLatLng!.longitude > _toLatLng!.longitude ? _fromLatLng!.longitude : _toLatLng!.longitude,
           ),
         ),
         100,
@@ -245,8 +249,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 controller: _fromController,
                 focusNode: _fromFocus,
                 isFrom: true,
-                borderTop: true,
-                borderBottom: false,
               ),
               const Divider(height: 1),
               _buildSearchInput(
@@ -254,8 +256,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 controller: _toController,
                 focusNode: _toFocus,
                 isFrom: false,
-                borderTop: false,
-                borderBottom: true,
               ),
             ],
           ),
@@ -271,8 +271,6 @@ class _HomeScreenState extends State<HomeScreen> {
     required TextEditingController controller,
     required FocusNode focusNode,
     required bool isFrom,
-    required bool borderTop,
-    required bool borderBottom,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -283,11 +281,9 @@ class _HomeScreenState extends State<HomeScreen> {
           hintText: label,
           border: InputBorder.none,
           prefixIcon: const Icon(Icons.search),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
         ),
         onChanged: (value) => _searchPlace(value, isFrom),
-        onTap: () {},
       ),
     );
   }
@@ -323,6 +319,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final markers = <Marker>{};
+    if (_currentLocation != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('current'),
+        position: _currentLocation!,
+        infoWindow: const InfoWindow(title: 'Your Location'),
+      ));
+    }
+    if (_fromMarker != null) markers.add(_fromMarker!);
+    if (_toMarker != null) markers.add(_toMarker!);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -349,7 +356,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               }
             },
-            markers: Set<Marker>.of(_markers),
+            markers: markers,
             polylines: Set<Polyline>.of(_polylines),
           ),
           Positioned(
@@ -358,7 +365,7 @@ class _HomeScreenState extends State<HomeScreen> {
             right: 0,
             child: _buildCombinedSearchBox(),
           ),
-          if (_isValidSelection)
+          if (_fromLatLng != null && _toLatLng != null)
             Positioned(
               top: 160,
               left: 20,
