@@ -38,6 +38,8 @@ dependencies:
   geolocator: ^13.0.4
   cupertino_icons: ^1.0.8
   flutter_google_places_sdk: ^0.4.0
+  flutter_polyline_points: ^2.1.0
+  geocoding: ^2.1.1
 
 dev_dependencies:
   flutter_test:

@@ -5,6 +5,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_google_places_sdk/flutter_google_places_sdk.dart'
     as places_sdk;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:geocoding/geocoding.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   GoogleMapController? _mapController;
   LatLng? _currentLocation;
   List<Marker> _markers = [];
+  List<Polyline> _polylines = [];
 
   final TextEditingController _fromController = TextEditingController();
   final TextEditingController _toController = TextEditingController();
@@ -30,12 +35,13 @@ class _HomeScreenState extends State<HomeScreen> {
   late places_sdk.FlutterGooglePlacesSdk _places;
 
   String? _token;
+  bool _isValidSelection = false;
+  final String googleApiKey = 'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II';
 
   @override
   void initState() {
     super.initState();
-    _places = places_sdk.FlutterGooglePlacesSdk(
-        'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II');
+    _places = places_sdk.FlutterGooglePlacesSdk(googleApiKey);
     _loadToken();
     _determinePosition();
   }
@@ -62,6 +68,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
     Position position = await Geolocator.getCurrentPosition();
     _currentLocation = LatLng(position.latitude, position.longitude);
+
+    final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+    if (placemarks.isNotEmpty) {
+      final place = placemarks.first;
+      _fromController.text = "${place.name}, ${place.locality}, ${place.administrativeArea}";
+    }
 
     _markers.add(
       Marker(
@@ -116,6 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
     } else {
       _toController.text = suggestion;
       _toSuggestions.clear();
+      FocusScope.of(context).unfocus();
+      _drawRoute(); // Automatically draw route after selecting destination
     }
 
     final result = await _places.findAutocompletePredictions(suggestion);
@@ -142,9 +156,70 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
 
-        setState(() {});
+        setState(() {
+          _isValidSelection = _fromController.text.isNotEmpty && _toController.text.isNotEmpty;
+        });
       }
     }
+    _polylines.clear();
+  }
+
+  Future<void> _drawRoute() async {
+    if (_fromController.text.isEmpty || _toController.text.isEmpty) return;
+
+    final fromResult = await _places.findAutocompletePredictions(_fromController.text);
+    final toResult = await _places.findAutocompletePredictions(_toController.text);
+
+    if (fromResult.predictions.isEmpty || toResult.predictions.isEmpty) return;
+
+    final fromPlace = await _places.fetchPlace(fromResult.predictions.first.placeId,
+        fields: [places_sdk.PlaceField.Location]);
+    final toPlace = await _places.fetchPlace(toResult.predictions.first.placeId,
+        fields: [places_sdk.PlaceField.Location]);
+
+    final fromLatLng = LatLng(fromPlace.place!.latLng!.lat, fromPlace.place!.latLng!.lng);
+    final toLatLng = LatLng(toPlace.place!.latLng!.lat, toPlace.place!.latLng!.lng);
+
+    final url =
+        "https://maps.googleapis.com/maps/api/directions/json?origin=${fromLatLng.latitude},${fromLatLng.longitude}&destination=${toLatLng.latitude},${toLatLng.longitude}&key=$googleApiKey";
+
+    final response = await http.get(Uri.parse(url));
+    final data = json.decode(response.body);
+
+    if (data['routes'].isEmpty) return;
+
+    final points = PolylinePoints().decodePolyline(
+      data['routes'][0]['overview_polyline']['points'],
+    );
+
+    final route = points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+
+    final polyline = Polyline(
+      polylineId: const PolylineId("route"),
+      color: Colors.blue,
+      width: 5,
+      points: route,
+    );
+
+    setState(() {
+      _polylines = [polyline];
+    });
+
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(
+            fromLatLng.latitude < toLatLng.latitude ? fromLatLng.latitude : toLatLng.latitude,
+            fromLatLng.longitude < toLatLng.longitude ? fromLatLng.longitude : toLatLng.longitude,
+          ),
+          northeast: LatLng(
+            fromLatLng.latitude > toLatLng.latitude ? fromLatLng.latitude : toLatLng.latitude,
+            fromLatLng.longitude > toLatLng.longitude ? fromLatLng.longitude : toLatLng.longitude,
+          ),
+        ),
+        100,
+      ),
+    );
   }
 
   Widget _buildCombinedSearchBox() {
@@ -212,6 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
         ),
         onChanged: (value) => _searchPlace(value, isFrom),
+        onTap: () {},
       ),
     );
   }
@@ -274,6 +350,7 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             },
             markers: Set<Marker>.of(_markers),
+            polylines: Set<Polyline>.of(_polylines),
           ),
           Positioned(
             top: 20,
@@ -281,6 +358,16 @@ class _HomeScreenState extends State<HomeScreen> {
             right: 0,
             child: _buildCombinedSearchBox(),
           ),
+          if (_isValidSelection)
+            Positioned(
+              top: 160,
+              left: 20,
+              right: 20,
+              child: ElevatedButton(
+                onPressed: _drawRoute,
+                child: const Text("Confirm"),
+              ),
+            ),
         ],
       ),
     );
