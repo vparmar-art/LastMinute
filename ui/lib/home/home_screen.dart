@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_google_places_sdk/flutter_google_places_sdk.dart'
+    as places_sdk;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,14 +18,24 @@ class _HomeScreenState extends State<HomeScreen> {
   LatLng? _currentLocation;
   List<Marker> _markers = [];
 
-  TextEditingController _fromController = TextEditingController();
-  TextEditingController _toController = TextEditingController();
+  final TextEditingController _fromController = TextEditingController();
+  final TextEditingController _toController = TextEditingController();
+
+  final FocusNode _fromFocus = FocusNode();
+  final FocusNode _toFocus = FocusNode();
+
+  List<String> _fromSuggestions = [];
+  List<String> _toSuggestions = [];
+
+  late places_sdk.FlutterGooglePlacesSdk _places;
 
   String? _token;
 
   @override
   void initState() {
     super.initState();
+    _places = places_sdk.FlutterGooglePlacesSdk(
+        'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II');
     _loadToken();
     _determinePosition();
   }
@@ -31,82 +43,175 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadToken() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    print('Stored token: $token');
-
     setState(() {
       _token = token;
     });
   }
 
   Future<void> _determinePosition() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return Future.error('Location services are disabled.');
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.deniedForever) {
-      return Future.error('Location permissions are permanently denied.');
-    }
-
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.deniedForever) return;
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission != LocationPermission.whileInUse &&
-          permission != LocationPermission.always) {
-        return Future.error('Location permissions are denied.');
-      }
+      if (permission != LocationPermission.always &&
+          permission != LocationPermission.whileInUse) return;
     }
 
     Position position = await Geolocator.getCurrentPosition();
-    setState(() {
-      _currentLocation = LatLng(position.latitude, position.longitude);
-      _markers.add(
-        Marker(
-          markerId: MarkerId('current'),
-          position: _currentLocation!,
-          infoWindow: InfoWindow(title: 'Your Location'),
-        ),
-      );
-    });
+    _currentLocation = LatLng(position.latitude, position.longitude);
 
-    if (_mapController != null) {
-      _mapController!.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(target: _currentLocation!, zoom: 15),
-        ),
-      );
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('current'),
+        position: _currentLocation!,
+        infoWindow: const InfoWindow(title: 'Your Location'),
+      ),
+    );
+
+    setState(() {});
+
+    _mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: _currentLocation!, zoom: 15),
+      ),
+    );
+  }
+
+  void _searchPlace(String query, bool isFrom) async {
+    if (query.isEmpty) {
+      setState(() {
+        if (isFrom) {
+          _fromSuggestions = [];
+        } else {
+          _toSuggestions = [];
+        }
+      });
+      return;
+    }
+
+    final result = await _places.findAutocompletePredictions(query);
+    if (result.predictions.isNotEmpty) {
+    final suggestions = result.predictions
+        .map((p) => p.fullText ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+      setState(() {
+        if (isFrom) {
+          _fromSuggestions = suggestions;
+        } else {
+          _toSuggestions = suggestions;
+        }
+      });
     }
   }
 
-  Widget _buildSearchField(String label, TextEditingController controller) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          )
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          hintText: label,
-          prefixIcon: const Icon(Icons.search),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 18),
+  void _selectSuggestion(String suggestion, bool isFrom) async {
+    if (isFrom) {
+      _fromController.text = suggestion;
+      _fromSuggestions.clear();
+    } else {
+      _toController.text = suggestion;
+      _toSuggestions.clear();
+    }
+
+    final result = await _places.findAutocompletePredictions(suggestion);
+    if (result.predictions.isNotEmpty) {
+      final placeId = result.predictions.first.placeId;
+      final place = await _places.fetchPlace(placeId,
+          fields: [places_sdk.PlaceField.Location]);
+
+      final loc = place.place?.latLng;
+      if (loc != null) {
+        final latLng = LatLng(loc.lat, loc.lng);
+
+        _mapController?.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(target: latLng, zoom: 15),
+          ),
+        );
+
+        _markers.add(
+          Marker(
+            markerId: MarkerId(suggestion),
+            position: latLng,
+            infoWindow: InfoWindow(title: suggestion),
+          ),
+        );
+
+        setState(() {});
+      }
+    }
+  }
+
+  Widget _buildSearchBox({
+    required String label,
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required bool isFrom,
+    required List<String> suggestions,
+  }) {
+    return Column(
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            decoration: InputDecoration(
+              hintText: label,
+              border: InputBorder.none,
+              prefixIcon: const Icon(Icons.search),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 15, vertical: 18),
+            ),
+            onChanged: (value) => _searchPlace(value, isFrom),
+          ),
         ),
-        onTap: () {
-          // TODO: Launch Google Place Autocomplete
-        },
-      ),
+        if (suggestions.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(14),
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 5,
+                ),
+              ],
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              children: suggestions
+                  .map(
+                    (s) => ListTile(
+                      title: Text(s),
+                      onTap: () => _selectSuggestion(s, isFrom),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+      ],
     );
   }
 
@@ -146,9 +251,21 @@ class _HomeScreenState extends State<HomeScreen> {
             right: 0,
             child: Column(
               children: [
-                _buildSearchField("Pickup location", _fromController),
+                _buildSearchBox(
+                  label: "From",
+                  controller: _fromController,
+                  focusNode: _fromFocus,
+                  isFrom: true,
+                  suggestions: _fromSuggestions,
+                ),
                 const SizedBox(height: 10),
-                _buildSearchField("Drop location", _toController),
+                _buildSearchBox(
+                  label: "To",
+                  controller: _toController,
+                  focusNode: _toFocus,
+                  isFrom: false,
+                  suggestions: _toSuggestions,
+                ),
               ],
             ),
           ),
