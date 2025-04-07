@@ -94,10 +94,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final result = await _places.findAutocompletePredictions(query);
     if (result.predictions.isNotEmpty) {
-    final suggestions = result.predictions
-        .map((p) => p.fullText ?? '')
-        .where((s) => s.isNotEmpty)
-        .toList();
+      final suggestions = result.predictions
+          .map((p) => p.fullText ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
 
       setState(() {
         if (isFrom) {
@@ -147,21 +147,14 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildSearchBox({
-    required String label,
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required bool isFrom,
-    required List<String> suggestions,
-  }) {
+  Widget _buildCombinedSearchBox() {
     return Column(
       children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: const [
               BoxShadow(
                 color: Colors.black26,
@@ -170,48 +163,85 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          child: TextField(
-            controller: controller,
-            focusNode: focusNode,
-            decoration: InputDecoration(
-              hintText: label,
-              border: InputBorder.none,
-              prefixIcon: const Icon(Icons.search),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 15, vertical: 18),
-            ),
-            onChanged: (value) => _searchPlace(value, isFrom),
+          child: Column(
+            children: [
+              _buildSearchInput(
+                label: "From",
+                controller: _fromController,
+                focusNode: _fromFocus,
+                isFrom: true,
+                borderTop: true,
+                borderBottom: false,
+              ),
+              const Divider(height: 1),
+              _buildSearchInput(
+                label: "To",
+                controller: _toController,
+                focusNode: _toFocus,
+                isFrom: false,
+                borderTop: false,
+                borderBottom: true,
+              ),
+            ],
           ),
         ),
-        if (suggestions.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(14),
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 5,
-                ),
-              ],
-            ),
-            child: ListView(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              children: suggestions
-                  .map(
-                    (s) => ListTile(
-                      title: Text(s),
-                      onTap: () => _selectSuggestion(s, isFrom),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
+        _buildSuggestions(_fromSuggestions, true),
+        _buildSuggestions(_toSuggestions, false),
       ],
+    );
+  }
+
+  Widget _buildSearchInput({
+    required String label,
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required bool isFrom,
+    required bool borderTop,
+    required bool borderBottom,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        decoration: InputDecoration(
+          hintText: label,
+          border: InputBorder.none,
+          prefixIcon: const Icon(Icons.search),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
+        ),
+        onChanged: (value) => _searchPlace(value, isFrom),
+      ),
+    );
+  }
+
+  Widget _buildSuggestions(List<String> suggestions, bool isFrom) {
+    if (suggestions.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 5,
+          ),
+        ],
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        children: suggestions
+            .map(
+              (s) => ListTile(
+                title: Text(s),
+                onTap: () => _selectSuggestion(s, isFrom),
+              ),
+            )
+            .toList(),
+      ),
     );
   }
 
@@ -249,25 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
             top: 20,
             left: 0,
             right: 0,
-            child: Column(
-              children: [
-                _buildSearchBox(
-                  label: "From",
-                  controller: _fromController,
-                  focusNode: _fromFocus,
-                  isFrom: true,
-                  suggestions: _fromSuggestions,
-                ),
-                const SizedBox(height: 10),
-                _buildSearchBox(
-                  label: "To",
-                  controller: _toController,
-                  focusNode: _toFocus,
-                  isFrom: false,
-                  suggestions: _toSuggestions,
-                ),
-              ],
-            ),
+            child: _buildCombinedSearchBox(),
           ),
         ],
       ),
