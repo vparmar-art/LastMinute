@@ -45,24 +45,14 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadToken();
     _determinePosition();
 
-    _fromController.addListener(() {
-      setState(() {
-        _isValidSelection = false;
-        _removeDestinationPin();
-      });
-    });
-
-    _toController.addListener(() {
-      setState(() {
-        _isValidSelection = false;
-        _removeDestinationPin();
-      });
-    });
+    _fromController.addListener(_onInputChanged);
+    _toController.addListener(_onInputChanged);
   }
 
-  void _removeDestinationPin() {
-    _markers.removeWhere((marker) => marker.markerId.value != 'current');
-    _polylines.clear();
+  void _onInputChanged() {
+    setState(() {
+      _isValidSelection = false;
+    });
   }
 
   Future<void> _loadToken() async {
@@ -71,6 +61,14 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _token = token;
     });
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auth_token');
+    if (context.mounted) {
+      Navigator.of(context).pushReplacementNamed('/login');
+    }
   }
 
   Future<void> _determinePosition() async {
@@ -91,16 +89,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
     if (placemarks.isNotEmpty) {
       final place = placemarks.first;
-      _fromController.text = "${place.name}, ${place.locality}, ${place.administrativeArea}";
+      final address = "${place.name}, ${place.locality}, ${place.administrativeArea}";
+      _fromController.text = address;
+      _addMarker(_currentLocation!, 'from', address);
     }
-
-    _markers.add(
-      Marker(
-        markerId: const MarkerId('current'),
-        position: _currentLocation!,
-        infoWindow: const InfoWindow(title: 'Your Location'),
-      ),
-    );
 
     setState(() {});
 
@@ -123,87 +115,90 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    final result = await _places.findAutocompletePredictions(query);
-    if (result.predictions.isNotEmpty) {
-      final suggestions = result.predictions
-          .map((p) => p.fullText ?? '')
-          .where((s) => s.isNotEmpty)
-          .toList();
+    final predictions = await _places.findAutocompletePredictions(query);
+    final suggestions = predictions.predictions
+        .map((p) => p.fullText ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
 
-      setState(() {
-        if (isFrom) {
-          _fromSuggestions = suggestions;
-        } else {
-          _toSuggestions = suggestions;
-        }
-      });
-    }
+    setState(() {
+      if (isFrom) {
+        _fromSuggestions = suggestions;
+      } else {
+        _toSuggestions = suggestions;
+      }
+    });
+  }
+
+  void _addMarker(LatLng position, String id, String title) {
+    setState(() {
+      _markers.removeWhere((m) => m.markerId.value == id);
+      _markers.add(
+        Marker(
+          markerId: MarkerId(id),
+          position: position,
+          infoWindow: InfoWindow(title: title),
+        ),
+      );
+    });
   }
 
   void _selectSuggestion(String suggestion, bool isFrom) async {
-    if (isFrom) {
-      _fromController.text = suggestion;
-      _fromSuggestions.clear();
-    } else {
-      _toController.text = suggestion;
-      _toSuggestions.clear();
-      FocusScope.of(context).unfocus();
-    }
+    final predictions = await _places.findAutocompletePredictions(suggestion);
+    if (predictions.predictions.isEmpty) return;
 
-    final result = await _places.findAutocompletePredictions(suggestion);
-    if (result.predictions.isNotEmpty) {
-      final placeId = result.predictions.first.placeId;
-      final place = await _places.fetchPlace(placeId,
-          fields: [places_sdk.PlaceField.Location]);
+    final placeId = predictions.predictions.first.placeId;
+    final placeDetails = await _places.fetchPlace(placeId,
+        fields: [places_sdk.PlaceField.Location]);
 
-      final loc = place.place?.latLng;
-      if (loc != null) {
-        final latLng = LatLng(loc.lat, loc.lng);
+    final loc = placeDetails.place?.latLng;
+    if (loc == null) return;
 
-        _mapController?.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(target: latLng, zoom: 15),
-          ),
-        );
+    final latLng = LatLng(loc.lat, loc.lng);
+    _mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: latLng, zoom: 15),
+      ),
+    );
 
-        _markers.add(
-          Marker(
-            markerId: MarkerId(suggestion),
-            position: latLng,
-            infoWindow: InfoWindow(title: suggestion),
-          ),
-        );
+    _addMarker(latLng, isFrom ? 'from' : 'to', suggestion);
 
-        setState(() {
-          _isValidSelection = _fromController.text.isNotEmpty && _toController.text.isNotEmpty;
-        });
+    setState(() {
+      if (isFrom) {
+        _fromController.text = suggestion;
+        _fromSuggestions.clear();
+      } else {
+        _toController.text = suggestion;
+        _toSuggestions.clear();
       }
-    }
-    _polylines.clear();
+      _isValidSelection =
+          _fromController.text.isNotEmpty && _toController.text.isNotEmpty;
+    });
   }
 
   Future<void> _drawRoute() async {
     if (_fromController.text.isEmpty || _toController.text.isEmpty) return;
 
-    final fromResult = await _places.findAutocompletePredictions(_fromController.text);
-    final toResult = await _places.findAutocompletePredictions(_toController.text);
+    final fromPred = await _places.findAutocompletePredictions(_fromController.text);
+    final toPred = await _places.findAutocompletePredictions(_toController.text);
+    if (fromPred.predictions.isEmpty || toPred.predictions.isEmpty) return;
 
-    if (fromResult.predictions.isEmpty || toResult.predictions.isEmpty) return;
-
-    final fromPlace = await _places.fetchPlace(fromResult.predictions.first.placeId,
+    final fromPlace = await _places.fetchPlace(fromPred.predictions.first.placeId,
         fields: [places_sdk.PlaceField.Location]);
-    final toPlace = await _places.fetchPlace(toResult.predictions.first.placeId,
+    final toPlace = await _places.fetchPlace(toPred.predictions.first.placeId,
         fields: [places_sdk.PlaceField.Location]);
 
     final fromLatLng = LatLng(fromPlace.place!.latLng!.lat, fromPlace.place!.latLng!.lng);
     final toLatLng = LatLng(toPlace.place!.latLng!.lat, toPlace.place!.latLng!.lng);
+
+    _addMarker(fromLatLng, 'from', _fromController.text);
+    _addMarker(toLatLng, 'to', _toController.text);
 
     final url =
         "https://maps.googleapis.com/maps/api/directions/json?origin=${fromLatLng.latitude},${fromLatLng.longitude}&destination=${toLatLng.latitude},${toLatLng.longitude}&key=$googleApiKey";
 
     final response = await http.get(Uri.parse(url));
     final data = json.decode(response.body);
-
     if (data['routes'].isEmpty) return;
 
     final points = PolylinePoints().decodePolyline(
@@ -212,15 +207,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final route = points.map((p) => LatLng(p.latitude, p.longitude)).toList();
 
-    final polyline = Polyline(
-      polylineId: const PolylineId("route"),
-      color: Colors.blue,
-      width: 5,
-      points: route,
-    );
-
     setState(() {
-      _polylines = [polyline];
+      _polylines = [
+        Polyline(
+          polylineId: const PolylineId("route"),
+          color: Colors.blue,
+          width: 5,
+          points: route,
+        ),
+      ];
     });
 
     _mapController?.animateCamera(
@@ -245,50 +240,32 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 10),
+          padding: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 6,
-                offset: Offset(0, 2),
-              ),
+              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
             ],
           ),
           child: Column(
             children: [
-              _buildSearchInput(
-                label: "From",
-                controller: _fromController,
-                focusNode: _fromFocus,
-                isFrom: true,
-                borderTop: true,
-                borderBottom: false,
-              ),
+              _buildSearchInput("From", _fromController, _fromFocus, true),
               const Divider(height: 1),
-              _buildSearchInput(
-                label: "To",
-                controller: _toController,
-                focusNode: _toFocus,
-                isFrom: false,
-                borderTop: false,
-                borderBottom: true,
-              ),
+              _buildSearchInput("To", _toController, _toFocus, false),
               if (_isValidSelection)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.all(10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   child: ElevatedButton(
+                    onPressed: _drawRoute,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      minimumSize: const Size(double.infinity, 45),
                     ),
-                    onPressed: _drawRoute,
-                    child: const Text("Confirm", style: TextStyle(color: Colors.white)),
+                    child: const Text("Confirm"),
                   ),
                 ),
             ],
@@ -300,14 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSearchInput({
-    required String label,
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required bool isFrom,
-    required bool borderTop,
-    required bool borderBottom,
-  }) {
+  Widget _buildSearchInput(String label, TextEditingController controller, FocusNode focusNode, bool isFrom) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: TextField(
@@ -317,11 +287,9 @@ class _HomeScreenState extends State<HomeScreen> {
           hintText: label,
           border: InputBorder.none,
           prefixIcon: const Icon(Icons.search),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
         ),
         onChanged: (value) => _searchPlace(value, isFrom),
-        onTap: () {},
       ),
     );
   }
@@ -333,24 +301,14 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 5,
-          ),
-        ],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)],
       ),
       child: ListView(
         shrinkWrap: true,
         padding: EdgeInsets.zero,
-        children: suggestions
-            .map(
-              (s) => ListTile(
-                title: Text(s),
-                onTap: () => _selectSuggestion(s, isFrom),
-              ),
-            )
-            .toList(),
+        children: suggestions.map(
+          (s) => ListTile(title: Text(s), onTap: () => _selectSuggestion(s, isFrom)),
+        ).toList(),
       ),
     );
   }
@@ -359,10 +317,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Home',
-          style: GoogleFonts.manrope(fontWeight: FontWeight.bold),
-        ),
+        title: Text('Home', style: GoogleFonts.manrope(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+          )
+        ],
       ),
       body: Stack(
         children: [

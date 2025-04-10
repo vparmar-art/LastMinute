@@ -213,7 +213,7 @@ void _startCooldownTimer() {
                                                 style: const TextStyle(
                                                   color: Colors.black,
                                                   fontSize: 20,
-                                                  fontWeight: FontWeight.w500,
+                                                  fontWeight: FontWeight.w700,
                                                   fontFamily: 'Courier',
                                                   letterSpacing: 1.6,
                                                 ),
