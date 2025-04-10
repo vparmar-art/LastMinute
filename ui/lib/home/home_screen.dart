@@ -2,13 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_google_places_sdk/flutter_google_places_sdk.dart'
-    as places_sdk;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:geocoding/geocoding.dart';
+import 'api_service.dart'; 
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +14,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final String _googleApiKey = 'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II';
+  late final ApiService _apiService;
+
   GoogleMapController? _mapController;
   LatLng? _currentLocation;
   List<Marker> _markers = [];
@@ -25,47 +24,53 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final TextEditingController _fromController = TextEditingController();
   final TextEditingController _toController = TextEditingController();
-
   final FocusNode _fromFocus = FocusNode();
   final FocusNode _toFocus = FocusNode();
-
   List<String> _fromSuggestions = [];
   List<String> _toSuggestions = [];
 
-  late places_sdk.FlutterGooglePlacesSdk _places;
-
-  String? _token;
   bool _isValidSelection = false;
-  final String googleApiKey = 'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II';
 
   @override
   void initState() {
     super.initState();
-    _places = places_sdk.FlutterGooglePlacesSdk(googleApiKey);
+    _apiService = ApiService(googleApiKey: _googleApiKey);
     _loadToken();
     _determinePosition();
 
     _fromController.addListener(_onInputChanged);
     _toController.addListener(_onInputChanged);
+
+    _fromFocus.addListener(() {
+      if (!_fromFocus.hasFocus) {
+        setState(() => _fromSuggestions.clear());
+      }
+    });
+    _toFocus.addListener(() {
+      if (!_toFocus.hasFocus) {
+        setState(() => _toSuggestions.clear());
+      }
+    });
   }
 
   void _onInputChanged() {
     setState(() {
-      _isValidSelection = false;
+      _isValidSelection =
+          _fromController.text.isNotEmpty && _toController.text.isNotEmpty;
     });
   }
 
   Future<void> _loadToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    setState(() {
-      _token = token;
-    });
+    final token = await _apiService.getToken();
+    if (token == null) {
+      if (context.mounted) {
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
+    }
   }
 
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
+    await _apiService.logout();
     if (context.mounted) {
       Navigator.of(context).pushReplacementNamed('/login');
     }
@@ -86,16 +91,14 @@ class _HomeScreenState extends State<HomeScreen> {
     Position position = await Geolocator.getCurrentPosition();
     _currentLocation = LatLng(position.latitude, position.longitude);
 
-    final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-    if (placemarks.isNotEmpty) {
-      final place = placemarks.first;
-      final address = "${place.name}, ${place.locality}, ${place.administrativeArea}";
+    final address =
+        await _apiService.getAddressFromCoordinates(_currentLocation!);
+    if (address != null) {
       _fromController.text = address;
       _addMarker(_currentLocation!, 'from', address);
     }
 
     setState(() {});
-
     _mapController?.animateCamera(
       CameraUpdate.newCameraPosition(
         CameraPosition(target: _currentLocation!, zoom: 15),
@@ -104,23 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _searchPlace(String query, bool isFrom) async {
-    if (query.isEmpty) {
-      setState(() {
-        if (isFrom) {
-          _fromSuggestions = [];
-        } else {
-          _toSuggestions = [];
-        }
-      });
-      return;
-    }
-
-    final predictions = await _places.findAutocompletePredictions(query);
-    final suggestions = predictions.predictions
-        .map((p) => p.fullText ?? '')
-        .where((s) => s.isNotEmpty)
-        .toList();
-
+    final suggestions = await _apiService.searchPlace(query);
     setState(() {
       if (isFrom) {
         _fromSuggestions = suggestions;
@@ -144,17 +131,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _selectSuggestion(String suggestion, bool isFrom) async {
-    final predictions = await _places.findAutocompletePredictions(suggestion);
-    if (predictions.predictions.isEmpty) return;
+    final latLng = await _apiService.getLatLngFromSuggestion(suggestion);
+    if (latLng == null) return;
 
-    final placeId = predictions.predictions.first.placeId;
-    final placeDetails = await _places.fetchPlace(placeId,
-        fields: [places_sdk.PlaceField.Location]);
-
-    final loc = placeDetails.place?.latLng;
-    if (loc == null) return;
-
-    final latLng = LatLng(loc.lat, loc.lng);
     _mapController?.animateCamera(
       CameraUpdate.newCameraPosition(
         CameraPosition(target: latLng, zoom: 15),
@@ -177,35 +156,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _drawRoute() async {
-    if (_fromController.text.isEmpty || _toController.text.isEmpty) return;
-
-    final fromPred = await _places.findAutocompletePredictions(_fromController.text);
-    final toPred = await _places.findAutocompletePredictions(_toController.text);
-    if (fromPred.predictions.isEmpty || toPred.predictions.isEmpty) return;
-
-    final fromPlace = await _places.fetchPlace(fromPred.predictions.first.placeId,
-        fields: [places_sdk.PlaceField.Location]);
-    final toPlace = await _places.fetchPlace(toPred.predictions.first.placeId,
-        fields: [places_sdk.PlaceField.Location]);
-
-    final fromLatLng = LatLng(fromPlace.place!.latLng!.lat, fromPlace.place!.latLng!.lng);
-    final toLatLng = LatLng(toPlace.place!.latLng!.lat, toPlace.place!.latLng!.lng);
+    final fromLatLng =
+        await _apiService.getLatLngFromSuggestion(_fromController.text);
+    final toLatLng =
+        await _apiService.getLatLngFromSuggestion(_toController.text);
+    if (fromLatLng == null || toLatLng == null) return;
 
     _addMarker(fromLatLng, 'from', _fromController.text);
     _addMarker(toLatLng, 'to', _toController.text);
 
-    final url =
-        "https://maps.googleapis.com/maps/api/directions/json?origin=${fromLatLng.latitude},${fromLatLng.longitude}&destination=${toLatLng.latitude},${toLatLng.longitude}&key=$googleApiKey";
-
-    final response = await http.get(Uri.parse(url));
-    final data = json.decode(response.body);
-    if (data['routes'].isEmpty) return;
-
-    final points = PolylinePoints().decodePolyline(
-      data['routes'][0]['overview_polyline']['points'],
-    );
-
-    final route = points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+    final route = await _apiService.getRoutePolyline(fromLatLng, toLatLng);
 
     setState(() {
       _polylines = [
@@ -222,15 +182,62 @@ class _HomeScreenState extends State<HomeScreen> {
       CameraUpdate.newLatLngBounds(
         LatLngBounds(
           southwest: LatLng(
-            fromLatLng.latitude < toLatLng.latitude ? fromLatLng.latitude : toLatLng.latitude,
-            fromLatLng.longitude < toLatLng.longitude ? fromLatLng.longitude : toLatLng.longitude,
+            fromLatLng.latitude < toLatLng.latitude
+                ? fromLatLng.latitude
+                : toLatLng.latitude,
+            fromLatLng.longitude < toLatLng.longitude
+                ? fromLatLng.longitude
+                : toLatLng.longitude,
           ),
           northeast: LatLng(
-            fromLatLng.latitude > toLatLng.latitude ? fromLatLng.latitude : toLatLng.latitude,
-            fromLatLng.longitude > toLatLng.longitude ? fromLatLng.longitude : toLatLng.longitude,
+            fromLatLng.latitude > toLatLng.latitude
+                ? fromLatLng.latitude
+                : toLatLng.latitude,
+            fromLatLng.longitude > toLatLng.longitude
+                ? fromLatLng.longitude
+                : toLatLng.longitude,
           ),
         ),
         100,
+      ),
+    );
+  }
+
+  Widget _buildSearchInput(String label, TextEditingController controller,
+      FocusNode focusNode, bool isFrom) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        decoration: InputDecoration(
+          hintText: label,
+          border: InputBorder.none,
+          prefixIcon: const Icon(Icons.search),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
+        ),
+        onChanged: (value) => _searchPlace(value, isFrom),
+      ),
+    );
+  }
+
+  Widget _buildSuggestions(List<String> suggestions, bool isFrom) {
+    if (suggestions.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)],
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        children: suggestions
+            .map((s) => ListTile(
+                title: Text(s), onTap: () => _selectSuggestion(s, isFrom)))
+            .toList(),
       ),
     );
   }
@@ -277,52 +284,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSearchInput(String label, TextEditingController controller, FocusNode focusNode, bool isFrom) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        decoration: InputDecoration(
-          hintText: label,
-          border: InputBorder.none,
-          prefixIcon: const Icon(Icons.search),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
-        ),
-        onChanged: (value) => _searchPlace(value, isFrom),
-      ),
-    );
-  }
-
-  Widget _buildSuggestions(List<String> suggestions, bool isFrom) {
-    if (suggestions.isEmpty) return const SizedBox.shrink();
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)],
-      ),
-      child: ListView(
-        shrinkWrap: true,
-        padding: EdgeInsets.zero,
-        children: suggestions.map(
-          (s) => ListTile(title: Text(s), onTap: () => _selectSuggestion(s, isFrom)),
-        ).toList(),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Home', style: GoogleFonts.manrope(fontWeight: FontWeight.bold)),
+        title:
+            Text('Home', style: GoogleFonts.manrope(fontWeight: FontWeight.bold)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-          )
+          IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
         ],
       ),
       body: Stack(
