@@ -38,6 +38,7 @@ class VehiclesPart extends StatefulWidget {
 class _VehiclesPartState extends State<VehiclesPart> {
   List<VehicleType> vehicleTypes = [];
   bool isLoading = true;
+  int selectedIndex = 0;
 
   @override
   void initState() {
@@ -87,82 +88,116 @@ class _VehiclesPartState extends State<VehiclesPart> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: vehicleTypes.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        final vehicle = vehicleTypes[index];
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24), // More rounded
-            border: Border.all(color: Colors.grey.shade200),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: vehicle.imageUrl.isNotEmpty
-                    ? Image.network(
-                        vehicle.imageUrl,
-                        height: 56,
-                        width: 56,
-                        fit: BoxFit.cover,
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: vehicleTypes.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 16),
+            itemBuilder: (context, index) {
+              final vehicle = vehicleTypes[index];
+              final isSelected = index == selectedIndex;
+
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    selectedIndex = index;
+                  });
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.orange.shade50 : Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: isSelected ? Colors.orange : Colors.grey.shade200,
+                      width: isSelected ? 2 : 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: vehicle.imageUrl.isNotEmpty
+                            ? Image.network(
+                                vehicle.imageUrl,
+                                height: 56,
+                                width: 56,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                height: 56,
+                                width: 56,
+                                color: Colors.orange.shade100,
+                                child: Center(child: _getVehicleIcon(vehicle.name)),
+                              ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              vehicle.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "₹${vehicle.baseFare.toStringAsFixed(0)} base + ₹${vehicle.farePerKm}/km",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              "${vehicle.capacity} KG capacity",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
                       )
-                    : Container(
-                        height: 56,
-                        width: 56,
-                        color: Colors.orange.shade100,
-                        child: Center(child: _getVehicleIcon(vehicle.name)),
-                      ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      vehicle.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "₹${vehicle.baseFare.toStringAsFixed(0)} base + ₹${vehicle.farePerKm}/km",
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      "${vehicle.capacity} KG capacity",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              )
-            ],
+              );
+            },
           ),
-        );
-      },
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  // TODO: Add your "Add Details" logic here
+                },
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                  backgroundColor: Colors.orange,
+                ),
+                child: const Text('Add Details'),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
