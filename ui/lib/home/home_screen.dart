@@ -382,27 +382,31 @@ class _HomeScreenState extends State<HomeScreen> {
             right: 0,
             child: _buildCombinedSearchBox(),
           ),
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            left: 0,
-            right: 0,
-            bottom: _isConfirmed ? 0 : -_vehiclePanelHeight,
-            height: _vehiclePanelHeight,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                boxShadow: [
-                  BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, -2))
-                ],
-              ),
-              padding: const EdgeInsets.all(10),
-              child: const SingleChildScrollView(
-                child: VehiclesPart(),
+          if (_isConfirmed)
+            Positioned.fill(
+              child: DraggableScrollableSheet(
+                initialChildSize: 0.25,
+                minChildSize: 0.2,
+                maxChildSize: 0.85,
+                builder: (context, scrollController) {
+                  return Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, -2)),
+                      ],
+                    ),
+                    child: ListView(
+                      controller: scrollController,
+                      children: const [
+                        VehiclesPart(),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
-          ),
         ],
       ),
     );
