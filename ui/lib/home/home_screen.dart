@@ -36,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _suppressSuggestions = false;
   bool _isConfirmed = false;
   Timer? _debounce;
+  double _vehiclePanelHeight = 250.0;
 
   @override
   void initState() {
@@ -240,23 +241,27 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSearchInput(String label, TextEditingController controller,
-    FocusNode focusNode, bool isFrom) {
+    FocusNode focusNode, bool isFrom, double height) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        readOnly: _isConfirmed,
-        style: GoogleFonts.manrope(fontSize: 14),
-        decoration: InputDecoration(
-          hintText: label,
-          prefixIcon: const Icon(Icons.search, size: 20),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          filled: true,
-          fillColor: Colors.grey.shade100,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        height: height,
+        child: TextField(
+          controller: controller,
+          focusNode: focusNode,
+          readOnly: _isConfirmed,
+          style: GoogleFonts.manrope(fontSize: 14),
+          decoration: InputDecoration(
+            hintText: label,
+            prefixIcon: const Icon(Icons.search, size: 20),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            filled: true,
+            fillColor: Colors.grey.shade100,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
       ),
@@ -286,6 +291,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildCombinedSearchBox() {
     final bool showConfirm = _isFromSelected && _isToSelected && !_isConfirmed;
 
+    if (_isConfirmed) return const SizedBox.shrink();
+
     return Column(
       children: [
         Container(
@@ -300,8 +307,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: Column(
             children: [
-              _buildSearchInput("From", _fromController, _fromFocus, true),
-              _buildSearchInput("To", _toController, _toFocus, false),
+              _buildSearchInput("From", _fromController, _fromFocus, true, _isConfirmed ? 36 : 48),
+              _buildSearchInput("To", _toController, _toFocus, false, _isConfirmed ? 36 : 48),
               if (showConfirm)
                 Padding(
                   padding:
@@ -331,8 +338,18 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title:
-            Text('Home', style: GoogleFonts.manrope(fontWeight: FontWeight.bold)),
+        leading: _isConfirmed
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  setState(() {
+                    _isConfirmed = false;
+                    _polylines.clear();
+                  });
+                },
+              )
+            : null,
+        title: Text('Home', style: GoogleFonts.manrope(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
         ],
@@ -360,17 +377,31 @@ class _HomeScreenState extends State<HomeScreen> {
             polylines: Set<Polyline>.of(_polylines),
           ),
           Positioned(
-            top: 20,
+            top: 0,
             left: 0,
             right: 0,
             child: _buildCombinedSearchBox(),
           ),
-          if (_isConfirmed)
-          Positioned(
-            bottom: 20,
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
             left: 0,
             right: 0,
-            child: const VehiclesPart(),
+            bottom: _isConfirmed ? 0 : -_vehiclePanelHeight,
+            height: _vehiclePanelHeight,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, -2))
+                ],
+              ),
+              padding: const EdgeInsets.all(10),
+              child: const SingleChildScrollView(
+                child: VehiclesPart(),
+              ),
+            ),
           ),
         ],
       ),
