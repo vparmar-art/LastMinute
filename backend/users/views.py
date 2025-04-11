@@ -7,6 +7,8 @@ from django.contrib.auth import get_user_model
 import random
 import logging
 from .models import OTP
+from twilio.rest import Client
+from django.conf import settings
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -46,9 +48,8 @@ class SendOTPView(APIView):
             logger.warning("Send OTP request missing phone number")
             return Response({"error": "Phone number is required"}, status=400)
 
+        # Generate 4-digit OTP
         code = str(random.randint(1000, 9999))
-
-        # Optionally tie to session
         session_id = request.session.session_key or request.session.save() or request.session.session_key
 
         otp = OTP.objects.create(
@@ -57,13 +58,23 @@ class SendOTPView(APIView):
             session_id=session_id
         )
 
-        print(f"Phone number: {phone_number} Generated OTP: {code}")
+        logger.info(f"OTP generated for {phone_number} - {code}")
 
-        logger.info(f"OTP generated for phone number: {phone_number}")
-        logger.debug(f"Generated OTP: {code}")
+        # Format phone number for WhatsApp (E.164 with 'whatsapp:' prefix)
+        whatsapp_number = f'whatsapp:+91{phone_number}'
 
-        # Simulate sending SMS (replace with actual SMS sending logic)
-        logger.info(f"Simulated sending OTP to {phone_number}")
+        try:
+            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+            message = client.messages.create(
+                from_=settings.TWILIO_WHATSAPP_NUMBER,
+                to=whatsapp_number,
+                content_sid=settings.TWILIO_WHATSAPP_TEMPLATE_SID,
+                content_variables=f'{{"1":"{code}"}}'  # assuming template uses variable {1} for OTP
+            )
+            logger.info(f"WhatsApp OTP sent to {phone_number}, SID: {message.sid}")
+        except Exception as e:
+            logger.error(f"Failed to send WhatsApp OTP to {phone_number}: {str(e)}")
+            return Response({"error": "Failed to send OTP"}, status=500)
 
         return Response({"message": "OTP sent successfully"})
 

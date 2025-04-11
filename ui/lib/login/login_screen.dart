@@ -100,9 +100,11 @@ void _startCooldownTimer() {
     if (!mounted) return false;
 
     if (_resendCooldown > 0) {
-      setState(() {
-        _resendCooldown--;
-      });
+      if (mounted) {
+        setState(() {
+          _resendCooldown--;
+        });
+      }
       return true;
     }
     return false;

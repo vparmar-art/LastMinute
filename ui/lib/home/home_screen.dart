@@ -4,7 +4,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
-import 'api_service.dart'; 
+import 'api_service.dart';
+import 'widgets/vehicles_part.dart';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,7 +31,11 @@ class _HomeScreenState extends State<HomeScreen> {
   List<String> _fromSuggestions = [];
   List<String> _toSuggestions = [];
 
-  bool _isValidSelection = false;
+  bool _isFromSelected = false;
+  bool _isToSelected = false;
+  bool _suppressSuggestions = false;
+  bool _isConfirmed = false;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -38,40 +44,55 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadToken();
     _determinePosition();
 
-    _fromController.addListener(_onInputChanged);
-    _toController.addListener(_onInputChanged);
+    _fromController.addListener(() {
+      if (_suppressSuggestions || _isConfirmed) return;
+      if (_fromFocus.hasFocus) {
+        setState(() => _isFromSelected = false);
 
-    _fromFocus.addListener(() {
-      if (!_fromFocus.hasFocus) {
-        setState(() => _fromSuggestions.clear());
+        if (_debounce?.isActive ?? false) _debounce!.cancel();
+        _debounce = Timer(const Duration(milliseconds: 300), () {
+          _searchPlace(_fromController.text, true);
+        });
       }
     });
-    _toFocus.addListener(() {
-      if (!_toFocus.hasFocus) {
-        setState(() => _toSuggestions.clear());
+
+    _toController.addListener(() {
+      if (_suppressSuggestions || _isConfirmed) return;
+      if (_toFocus.hasFocus) {
+        setState(() => _isToSelected = false);
+
+        if (_debounce?.isActive ?? false) _debounce!.cancel();
+        _debounce = Timer(const Duration(milliseconds: 300), () {
+          _searchPlace(_toController.text, false);
+        });
       }
+    });
+
+    _fromFocus.addListener(() {
+      if (!_fromFocus.hasFocus) setState(() => _fromSuggestions.clear());
+    });
+
+    _toFocus.addListener(() {
+      if (!_toFocus.hasFocus) setState(() => _toSuggestions.clear());
     });
   }
 
-  void _onInputChanged() {
-    setState(() {
-      _isValidSelection =
-          _fromController.text.isNotEmpty && _toController.text.isNotEmpty;
-    });
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadToken() async {
     final token = await _apiService.getToken();
-    if (token == null) {
-      if (context.mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
-      }
+    if (token == null && mounted) {
+      Navigator.of(context).pushReplacementNamed('/login');
     }
   }
 
   Future<void> _logout() async {
     await _apiService.logout();
-    if (context.mounted) {
+    if (mounted) {
       Navigator.of(context).pushReplacementNamed('/login');
     }
   }
@@ -96,6 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (address != null) {
       _fromController.text = address;
       _addMarker(_currentLocation!, 'from', address);
+      _isFromSelected = true;
     }
 
     setState(() {});
@@ -131,6 +153,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _selectSuggestion(String suggestion, bool isFrom) async {
+    _suppressSuggestions = true;
+
     final latLng = await _apiService.getLatLngFromSuggestion(suggestion);
     if (latLng == null) return;
 
@@ -142,20 +166,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _addMarker(latLng, isFrom ? 'from' : 'to', suggestion);
 
-    setState(() {
-      if (isFrom) {
-        _fromController.text = suggestion;
+    if (isFrom) {
+      _fromFocus.unfocus();
+      setState(() {
         _fromSuggestions.clear();
-      } else {
-        _toController.text = suggestion;
+        _fromController.text = suggestion;
+        _isFromSelected = true;
+      });
+    } else {
+      _toFocus.unfocus();
+      setState(() {
         _toSuggestions.clear();
-      }
-      _isValidSelection =
-          _fromController.text.isNotEmpty && _toController.text.isNotEmpty;
+        _toController.text = suggestion;
+        _isToSelected = true;
+      });
+    }
+
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _suppressSuggestions = false;
     });
   }
 
   Future<void> _drawRoute() async {
+    _fromFocus.unfocus();
+    _toFocus.unfocus();
+
     final fromLatLng =
         await _apiService.getLatLngFromSuggestion(_fromController.text);
     final toLatLng =
@@ -176,6 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
           points: route,
         ),
       ];
+      _isConfirmed = true;
     });
 
     _mapController?.animateCamera(
@@ -204,26 +240,31 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSearchInput(String label, TextEditingController controller,
-      FocusNode focusNode, bool isFrom) {
+    FocusNode focusNode, bool isFrom) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: TextField(
         controller: controller,
         focusNode: focusNode,
+        readOnly: _isConfirmed,
+        style: GoogleFonts.manrope(fontSize: 14),
         decoration: InputDecoration(
           hintText: label,
-          border: InputBorder.none,
-          prefixIcon: const Icon(Icons.search),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
+          prefixIcon: const Icon(Icons.search, size: 20),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          filled: true,
+          fillColor: Colors.grey.shade100,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide.none,
+          ),
         ),
-        onChanged: (value) => _searchPlace(value, isFrom),
       ),
     );
   }
 
   Widget _buildSuggestions(List<String> suggestions, bool isFrom) {
-    if (suggestions.isEmpty) return const SizedBox.shrink();
+    if (suggestions.isEmpty || _isConfirmed) return const SizedBox.shrink();
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
@@ -243,6 +284,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCombinedSearchBox() {
+    final bool showConfirm = _isFromSelected && _isToSelected && !_isConfirmed;
+
     return Column(
       children: [
         Container(
@@ -258,11 +301,11 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             children: [
               _buildSearchInput("From", _fromController, _fromFocus, true),
-              const Divider(height: 1),
               _buildSearchInput("To", _toController, _toFocus, false),
-              if (_isValidSelection)
+              if (showConfirm)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   child: ElevatedButton(
                     onPressed: _drawRoute,
                     style: ElevatedButton.styleFrom(
@@ -321,6 +364,13 @@ class _HomeScreenState extends State<HomeScreen> {
             left: 0,
             right: 0,
             child: _buildCombinedSearchBox(),
+          ),
+          if (_isConfirmed)
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: const VehiclesPart(),
           ),
         ],
       ),
