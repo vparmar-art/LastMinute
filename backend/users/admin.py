@@ -1,29 +1,30 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User
-from .models import OTP
+from users.models.customer import Customer, CustomerOTP
+from users.models.partner import Partner, PartnerOTP
 
-class UserAdmin(BaseUserAdmin):
-    model = User
-    list_display = ['username', 'email', 'phone_number', 'user_type', 'is_staff']
-    fieldsets = BaseUserAdmin.fieldsets + (
-        (None, {'fields': ('phone_number', 'user_type')}),
-    )
-    add_fieldsets = BaseUserAdmin.add_fieldsets + (
-        (None, {'fields': ('phone_number', 'user_type')}),
-    )
-
-
-@admin.register(OTP)
-class OTPAdmin(admin.ModelAdmin):
-    list_display = ('phone_number', 'code', 'created_at', 'is_verified', 'is_expired_display')
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ('id', 'full_name', 'phone_number', 'is_verified', 'created_at')
+    search_fields = ('full_name', 'phone_number')
     list_filter = ('is_verified', 'created_at')
-    search_fields = ('phone_number', 'code')
-    readonly_fields = ('phone_number', 'code', 'created_at', 'session_id', 'is_expired_display')
 
-    def is_expired_display(self, obj):
-        return obj.is_expired()
-    is_expired_display.short_description = 'Is Expired'
-    is_expired_display.boolean = True
 
-admin.site.register(User, UserAdmin)
+@admin.register(CustomerOTP)
+class CustomerOTPAdmin(admin.ModelAdmin):
+    list_display = ('id', 'customer', 'code', 'is_verified', 'created_at')
+    search_fields = ('customer__phone_number', 'code')
+    list_filter = ('is_verified', 'created_at')
+
+
+@admin.register(Partner)
+class PartnerAdmin(admin.ModelAdmin):
+    list_display = ('id', 'business_name', 'phone_number', 'license_number', 'vehicle_type', 'is_approved', 'created_at')
+    search_fields = ('business_name', 'phone_number', 'license_number')
+    list_filter = ('is_approved', 'vehicle_type', 'created_at')
+
+
+@admin.register(PartnerOTP)
+class PartnerOTPAdmin(admin.ModelAdmin):
+    list_display = ('id', 'partner', 'code', 'is_verified', 'created_at')
+    search_fields = ('partner__phone_number', 'code')
+    list_filter = ('is_verified', 'created_at')

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.29.86:8000/api/users';
+  static const String baseUrl = 'http://192.168.29.86:8000/api/users/partner';
 
   Future<String> sayHello() async {
     final response = await http.get(Uri.parse('$baseUrl/hello/'));
@@ -14,7 +14,7 @@ class ApiService {
   }
 
   Future<bool> sendOtp(String phoneNumber) async {
-    final url = Uri.parse('$baseUrl/send-otp');
+    final url = Uri.parse('$baseUrl/send-otp/');
     final response = await http.post(
       url,
       body: {'phone_number': phoneNumber},
@@ -29,7 +29,7 @@ class ApiService {
   }
 
   Future<String> verifyOtp(String phoneNumber, String otp) async {
-    final url = Uri.parse('$baseUrl/verify-otp');
+    final url = Uri.parse('$baseUrl/verify-otp/');
     final response = await http.post(
       url,
       body: {

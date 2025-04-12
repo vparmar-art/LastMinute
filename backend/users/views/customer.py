@@ -1,44 +1,17 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
-from rest_framework.authtoken.models import Token
-from django.contrib.auth import authenticate
-from django.contrib.auth import get_user_model
-import random
-import logging
-from .models import OTP
+from users.models.customer import Customer, CustomerOTP
+from users.models.token import Token  # Now using the renamed Token model
 from twilio.rest import Client
 from django.conf import settings
+import random
+import logging
+import uuid
 
-# Initialize logger
 logger = logging.getLogger(__name__)
 
-User = get_user_model()
-
-class LoginView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        username = request.data.get('username')
-        password = request.data.get('password')
-
-        logger.info("Login attempt received")
-        logger.debug(f"Username: {username}")
-
-        user_exists = User.objects.filter(username=username).exists()
-        logger.debug(f"User exists: {user_exists}")
-
-        user = authenticate(username=username, password=password)
-        if user:
-            logger.info(f"User authenticated successfully: {username}")
-            token, _ = Token.objects.get_or_create(user=user)
-            return Response({'token': token.key})
-        
-        logger.warning(f"Invalid login attempt for username: {username}")
-        return Response({'error': 'Invalid credentials'}, status=400)
-
-
-class SendOTPView(APIView):
+class CustomerSendOTPView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -50,10 +23,11 @@ class SendOTPView(APIView):
 
         # Generate 4-digit OTP
         code = str(random.randint(1000, 9999))
+        customer, _ = Customer.objects.get_or_create(phone_number=phone_number, defaults={"full_name": ""})
         session_id = request.session.session_key or request.session.save() or request.session.session_key
 
-        otp = OTP.objects.create(
-            phone_number=phone_number,
+        otp = CustomerOTP.objects.create(
+            customer=customer,
             code=code,
             session_id=session_id
         )
@@ -69,7 +43,7 @@ class SendOTPView(APIView):
                 from_=settings.TWILIO_WHATSAPP_NUMBER,
                 to=whatsapp_number,
                 content_sid=settings.TWILIO_WHATSAPP_TEMPLATE_SID,
-                content_variables=f'{{"1":"{code}"}}'  # assuming template uses variable {1} for OTP
+                content_variables=f'{{"1":"{code}"}}'
             )
             logger.info(f"WhatsApp OTP sent to {phone_number}, SID: {message.sid}")
         except Exception as e:
@@ -79,7 +53,7 @@ class SendOTPView(APIView):
         return Response({"message": "OTP sent successfully"})
 
 
-class VerifyOTPView(APIView):
+class CustomerVerifyOTPView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -89,8 +63,8 @@ class VerifyOTPView(APIView):
         logger.info(f"OTP verification attempt for phone number: {phone_number}")
 
         try:
-            otp = OTP.objects.filter(phone_number=phone_number, is_verified=False).latest('created_at')
-        except OTP.DoesNotExist:
+            otp = CustomerOTP.objects.filter(customer__phone_number=phone_number, is_verified=False).latest('created_at')
+        except CustomerOTP.DoesNotExist:
             logger.warning(f"No OTP found or already verified for phone number: {phone_number}")
             return Response({'error': 'No OTP found or already verified'}, status=400)
 
@@ -106,16 +80,16 @@ class VerifyOTPView(APIView):
         otp.save()
         logger.info(f"OTP verified successfully for phone number: {phone_number}")
 
-        # Get or create the user
-        user, created = User.objects.get_or_create(phone_number=phone_number, defaults={
-            'username': phone_number,
-        })
+        # Get or create the customer
+        customer, created = Customer.objects.get_or_create(phone_number=phone_number, defaults={'full_name': phone_number})
 
         if created:
-            logger.info(f"New user created for phone number: {phone_number}")
+            logger.info(f"New customer created for phone number: {phone_number}")
         else:
-            logger.info(f"Existing user retrieved for phone number: {phone_number}")
+            logger.info(f"Existing customer retrieved for phone number: {phone_number}")
 
-        token, _ = Token.objects.get_or_create(user=user)
-        logger.info(f"Token generated for user: {phone_number} {token.key}")
+        # Generate a token for the customer using the custom Token model
+        token_key = str(uuid.uuid4())  # Example of using UUID for token
+        token, _ = Token.objects.get_or_create(customer=customer, defaults={'key': token_key})
+        logger.info(f"Token generated for customer: {phone_number} {token.key}")
         return Response({'token': token.key})
