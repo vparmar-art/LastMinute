@@ -151,7 +151,7 @@ class PartnerVerificationView(APIView):
 
             # Update only provided fields
             for field in ['owner_full_name', 'vehicle_type', 'vehicle_number', 'registration_number',
-                          'driver_name', 'driver_license', 'driver_phone']:
+                          'driver_name', 'driver_license', 'driver_phone', 'selfie']:
                 if field in data:
                     setattr(verification, field, data[field])
 

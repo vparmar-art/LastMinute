@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class DriverDetailsScreen extends StatefulWidget {
   const DriverDetailsScreen({super.key});
@@ -14,6 +16,7 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
   final _driverNameController = TextEditingController();
   final _driverPhoneController = TextEditingController();
   final _driverLicenseController = TextEditingController();
+  File? _selfieImage;
 
   @override
   void dispose() {
@@ -52,26 +55,38 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
     final token = prefs.getString('auth_token');
     if (token == null) return;
 
-    final response = await http.post(
-      Uri.parse('http://192.168.29.86:8000/api/users/partner/verification/'),
-      headers: {
-        'Authorization': 'Token $token',
-        'Content-Type': 'application/json',  // Ensure this header is set
-      },
-      body: json.encode({
-        'driver_name': _driverNameController.text,
-        'driver_phone': _driverPhoneController.text,
-        'driver_license': _driverLicenseController.text,
-      }),
-    );
+    final uri = Uri.parse('http://192.168.29.86:8000/api/users/partner/verification/');
+    final request = http.MultipartRequest('POST', uri)
+      ..headers['Authorization'] = 'Token $token'
+      ..fields['driver_name'] = _driverNameController.text
+      ..fields['driver_phone'] = _driverPhoneController.text
+      ..fields['driver_license'] = _driverLicenseController.text;
 
-    if (response.statusCode == 200) {
+    if (_selfieImage != null) {
+      request.files.add(await http.MultipartFile.fromPath('selfie', _selfieImage!.path));
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
       print('Driver details saved successfully');
       if (context.mounted) {
         Navigator.pushNamed(context, '/verify-im-progress');
       }
     } else {
       print('Failed to save driver details');
+    }
+  }
+
+  Future<void> _pickSelfie() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.camera, preferredCameraDevice: CameraDevice.front);
+
+    if (pickedFile != null) {
+      setState(() {
+        _selfieImage = File(pickedFile.path);
+      });
     }
   }
 
@@ -91,48 +106,71 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
         ),
         backgroundColor: Colors.indigo,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextField(
-                controller: _driverNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Driver Full Name',
-                  border: OutlineInputBorder(),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: _pickSelfie,
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 60,
+                        backgroundImage: _selfieImage != null ? FileImage(_selfieImage!) : null,
+                        backgroundColor: Colors.grey[300],
+                        child: _selfieImage == null
+                            ? Icon(Icons.camera_alt, size: 40, color: Colors.white)
+                            : null,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Tap to take a selfie',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _driverPhoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Driver Phone Number',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _driverNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Driver Full Name',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _driverLicenseController,
-                decoration: const InputDecoration(
-                  labelText: 'License Number',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _driverPhoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Driver Phone Number',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _saveDriverDetails,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  minimumSize: const Size.fromHeight(50),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _driverLicenseController,
+                  decoration: const InputDecoration(
+                    labelText: 'License Number',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-                child: const Text('Next'),
-              ),
-            ],
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _saveDriverDetails,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    minimumSize: const Size.fromHeight(50),
+                  ),
+                  child: const Text('Next'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
