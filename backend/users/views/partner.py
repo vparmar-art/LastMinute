@@ -8,6 +8,8 @@ from django.conf import settings
 import random
 import logging
 import uuid
+from users.models.partner import PartnerVerification
+from users.serializers.partner import PartnerVerificationSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -105,14 +107,58 @@ class PartnerProfileView(APIView):
         try:
             token = Token.objects.get(key=token_key)
             partner = token.partner
+            verification = partner.verification  # Fetch the partner's verification data
         except Token.DoesNotExist:
             return Response({'error': 'Invalid token'}, status=401)
+        except PartnerVerification.DoesNotExist:
+            return Response({'message': 'Verification data not found'}, status=404)
 
         profile_data = {
             'phone_number': partner.phone_number,
-            'business_name': partner.business_name,
-            'license_number': partner.license_number,
-            'vehicle_type': partner.vehicle_type,
-            'is_approved': partner.is_approved,  # New field
+            'is_verified': verification.is_verified,  # Updated field
+            'owner_full_name': verification.owner_full_name,
+            'vehicle_type': verification.vehicle_type,
+            'vehicle_number': verification.vehicle_number,
+            'registration_number': verification.registration_number,
+            'driver_name': verification.driver_name,
+            'driver_license': verification.driver_license,
+            'license_document': verification.license_document.url if verification.license_document else None,
+            'registration_document': verification.registration_document.url if verification.registration_document else None,
+            'selfie': verification.selfie.url if verification.selfie else None,
         }
         return Response({'profile': profile_data})
+
+class PartnerVerificationView(APIView):
+
+    def get(self, request):
+        token_key = request.headers.get('Authorization', '').replace('Token ', '')
+        try:
+            token = Token.objects.get(key=token_key)
+            verification = PartnerVerification.objects.get(partner=token.partner)
+            serializer = PartnerVerificationSerializer(verification)
+            return Response(serializer.data)
+        except Token.DoesNotExist:
+            return Response({'error': 'Invalid token'}, status=401)
+        except PartnerVerification.DoesNotExist:
+            return Response({'message': 'Verification data not found'}, status=404)
+
+    def post(self, request):
+        token_key = request.headers.get('Authorization', '').replace('Token ', '')
+        try:
+            token = Token.objects.get(key=token_key)
+            verification = PartnerVerification.objects.get(partner=token.partner)
+            data = request.data
+
+            # Update only provided fields
+            for field in ['owner_full_name', 'vehicle_type', 'vehicle_number', 'registration_number',
+                          'driver_name', 'driver_license', 'driver_phone']:
+                if field in data:
+                    setattr(verification, field, data[field])
+
+            verification.save()
+            serializer = PartnerVerificationSerializer(verification)
+            return Response(serializer.data, status=200)
+        except Token.DoesNotExist:
+            return Response({'error': 'Invalid token'}, status=401)
+        except PartnerVerification.DoesNotExist:
+            return Response({'message': 'Verification data not found'}, status=404)

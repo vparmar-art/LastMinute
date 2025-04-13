@@ -1,2 +1,2 @@
 from .customer import Customer, CustomerOTP
-from .partner import Partner, PartnerOTP
+from .partner import Partner, PartnerOTP, PartnerVerification
