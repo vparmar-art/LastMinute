@@ -93,3 +93,26 @@ class PartnerVerifyOTPView(APIView):
         token, _ = Token.objects.get_or_create(partner=partner, defaults={'key': token_key})
         logger.info(f"Token generated for partner: {phone_number} {token.key}")
         return Response({'token': token.key})
+
+class PartnerProfileView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        token_key = request.headers.get('Authorization', '').replace('Token ', '')
+        if not token_key:
+            return Response({'error': 'Authorization token missing'}, status=401)
+
+        try:
+            token = Token.objects.get(key=token_key)
+            partner = token.partner
+        except Token.DoesNotExist:
+            return Response({'error': 'Invalid token'}, status=401)
+
+        profile_data = {
+            'phone_number': partner.phone_number,
+            'business_name': partner.business_name,
+            'license_number': partner.license_number,
+            'vehicle_type': partner.vehicle_type,
+            'is_approved': partner.is_approved,  # New field
+        }
+        return Response({'profile': profile_data})

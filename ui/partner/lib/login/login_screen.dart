@@ -113,206 +113,216 @@ void _startCooldownTimer() {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xfff5f7fa),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 360),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Welcome to LastMinute 🚚',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.manrope(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: 240,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade400),
+    return Theme(
+      data: Theme.of(context).copyWith(
+        primaryColor: Colors.indigo,
+        colorScheme: Theme.of(context).colorScheme.copyWith(primary: Colors.indigo),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.indigo,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: const Color(0xfff5f7fa),
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'LastMinute Partner App 🚚',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.manrope(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.indigo,
                       ),
-                      child: Row(
-                        children: [
-                          Center(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              child: Text(
-                                '+91',
-                                style: const TextStyle(
-                                  fontSize: 18,
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: 240,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade400),
+                        ),
+                        child: Row(
+                          children: [
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Text(
+                                  '+91',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 48,
+                              color: Colors.grey.shade300,
+                            ),
+                            Expanded(
+                              child: Stack(
+                                alignment: Alignment.centerLeft,
+                                children: [
+                                  TextField(
+                                    controller: _phoneController,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(10),
+                                    ],
+                                    cursorColor: Colors.black,
+                                    enableInteractiveSelection: false,
+                                    style: const TextStyle(
+                                      color: Colors.transparent,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w500,
+                                      fontFamily: 'Courier',
+                                      letterSpacing: 1.6,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                      border: InputBorder.none,
+                                      counterText: '',
+                                    ),
+                                    onChanged: (value) {
+                                      final raw = value.replaceAll('X', '');
+                                      if (raw.length <= 10) {
+                                        final masked = raw + 'X' * (10 - raw.length);
+                                        final cursorPos = raw.length;
+                                        _phoneController.value = TextEditingValue(
+                                          text: masked,
+                                          selection: TextSelection.collapsed(offset: cursorPos),
+                                        );
+                                      }
+                                      if (_error != null) setState(() => _error = null);
+                                    },
+                                  ),
+                                  IgnorePointer(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      child: AnimatedBuilder(
+                                        animation: _phoneController,
+                                        builder: (context, _) {
+                                          final input = _phoneController.text.replaceAll('X', '');
+                                          final remaining = 10 - input.length;
+                                          return RichText(
+                                            text: TextSpan(
+                                              children: [
+                                                TextSpan(
+                                                  text: input,
+                                                  style: const TextStyle(
+                                                    color: Colors.black,
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontFamily: 'Courier',
+                                                    letterSpacing: 1.6,
+                                                  ),
+                                                ),
+                                                TextSpan(
+                                                  text: 'X' * remaining,
+                                                  style: TextStyle(
+                                                    color: Colors.grey[300],
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.w500,
+                                                    fontFamily: 'Courier',
+                                                    letterSpacing: 1.6,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_otpSent) ...[
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: 240,
+                        child: TextField(
+                          controller: _otpController,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          maxLength: 4,
+                          decoration: InputDecoration(
+                            hintText: 'Enter OTP',
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            counterText: '',
+                          ),
+                          onChanged: (_) {
+                            if (_error != null) setState(() => _error = null);
+                          },
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          _error!,
+                          style: const TextStyle(color: Color(0xffd32f2f)),
+                        ),
+                      ),
+                    SizedBox(
+                      width: 240,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : (_otpSent ? _verifyOtp : _sendOtp),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : Text(
+                                _otpSent ? 'Verify OTP' : 'Send OTP',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 16,
+                                  color: Colors.white,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ),
-                          ),
-                          Container(
-                            width: 1,
-                            height: 48,
-                            color: Colors.grey.shade300,
-                          ),
-                          Expanded(
-                            child: Stack(
-                              alignment: Alignment.centerLeft,
-                              children: [
-                                TextField(
-                                  controller: _phoneController,
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly,
-                                    LengthLimitingTextInputFormatter(10),
-                                  ],
-                                  cursorColor: Colors.black,
-                                  enableInteractiveSelection: false,
-                                  style: const TextStyle(
-                                    color: Colors.transparent,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w500,
-                                    fontFamily: 'Courier',
-                                    letterSpacing: 1.6,
-                                  ),
-                                  decoration: const InputDecoration(
-                                    isDense: true,
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                                    border: InputBorder.none,
-                                    counterText: '',
-                                  ),
-                                  onChanged: (value) {
-                                    final raw = value.replaceAll('X', '');
-                                    if (raw.length <= 10) {
-                                      final masked = raw + 'X' * (10 - raw.length);
-                                      final cursorPos = raw.length;
-                                      _phoneController.value = TextEditingValue(
-                                        text: masked,
-                                        selection: TextSelection.collapsed(offset: cursorPos),
-                                      );
-                                    }
-                                    if (_error != null) setState(() => _error = null);
-                                  },
-                                ),
-                                IgnorePointer(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    child: AnimatedBuilder(
-                                      animation: _phoneController,
-                                      builder: (context, _) {
-                                        final input = _phoneController.text.replaceAll('X', '');
-                                        final remaining = 10 - input.length;
-                                        return RichText(
-                                          text: TextSpan(
-                                            children: [
-                                              TextSpan(
-                                                text: input,
-                                                style: const TextStyle(
-                                                  color: Colors.black,
-                                                  fontSize: 20,
-                                                  fontWeight: FontWeight.w700,
-                                                  fontFamily: 'Courier',
-                                                  letterSpacing: 1.6,
-                                                ),
-                                              ),
-                                              TextSpan(
-                                                text: 'X' * remaining,
-                                                style: TextStyle(
-                                                  color: Colors.grey[300],
-                                                  fontSize: 20,
-                                                  fontWeight: FontWeight.w500,
-                                                  fontFamily: 'Courier',
-                                                  letterSpacing: 1.6,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
                       ),
                     ),
-                  ),
-                  if (_otpSent) ...[
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: 240,
-                      child: TextField(
-                        controller: _otpController,
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                        maxLength: 4,
-                        decoration: InputDecoration(
-                          hintText: 'Enter OTP',
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          counterText: '',
-                        ),
-                        onChanged: (_) {
-                          if (_error != null) setState(() => _error = null);
-                        },
+                    if (_otpSent && _resendCooldown > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text('Resend OTP in $_resendCooldown seconds'),
                       ),
-                    ),
+                    if (_otpSent && _resendCooldown == 0)
+                      TextButton(
+                        onPressed: _sendOtp,
+                        child: const Text('Resend OTP'),
+                      ),
                   ],
-                  const SizedBox(height: 24),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  SizedBox(
-                    width: 240,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : (_otpSent ? _verifyOtp : _sendOtp),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xff1e88e5),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Text(
-                              _otpSent ? 'Verify OTP' : 'Send OTP',
-                              style: GoogleFonts.manrope(
-                                fontSize: 16,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    ),
-                  ),
-                  if (_otpSent && _resendCooldown > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Text('Resend OTP in $_resendCooldown seconds'),
-                    ),
-                  if (_otpSent && _resendCooldown == 0)
-                    TextButton(
-                      onPressed: _sendOtp,
-                      child: const Text('Resend OTP'),
-                    ),
-                ],
+                ),
               ),
             ),
           ),
