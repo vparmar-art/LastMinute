@@ -87,7 +87,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'graphene_django',
     'users',
-    'vehicles'
+    'vehicles',
+    'bookings'
 ]
 
 GRAPHENE = {

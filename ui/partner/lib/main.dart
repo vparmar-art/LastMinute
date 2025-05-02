@@ -58,7 +58,13 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/owner-details': (context) => const OwnerDetailsScreen(),
         '/driver-details': (context) => const DriverDetailsScreen(),
-        '/verify-im-progress': (context) => const VerificationScreen(),
+        '/verify-im-progress': (context) {
+          final controller = VerificationController();
+          return VerificationScreen(
+            isRejected: controller.data.isRejected,
+            rejectionReason: controller.data.rejectionReason,
+          );
+        },
         '/verify': (context) => Builder(
           builder: (context) {
             WidgetsBinding.instance.addPostFrameCallback((_) {

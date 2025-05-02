@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'verification_screen.dart';
 
 class VerificationData {
   // Step 1 - Vehicle Owner Info
@@ -19,6 +20,9 @@ class VerificationData {
   bool isAgreedToTerms = false;
   int currentStep = 1;
 
+  bool isRejected = false;
+  String? rejectionReason;
+
   Map<String, dynamic> toJson() {
     return {
       'ownerFullName': ownerFullName,
@@ -30,6 +34,8 @@ class VerificationData {
       'driverLicenseNumber': driverLicenseNumber,
       'isAgreedToTerms': isAgreedToTerms,
       'currentStep': currentStep,  // Add current step to the JSON data
+      'isRejected': isRejected,
+      'rejectionReason': rejectionReason,
     };
   }
 
@@ -53,6 +59,8 @@ class VerificationData {
       driverLicenseNumber = data['driver_license_number'];
       isAgreedToTerms = data['is_agreed_to_terms'] ?? false;  // Corrected key name and default
       currentStep = data['current_step'] ?? 1;  // Default to step 1 if null
+      isRejected = data['is_rejected'] ?? false;
+      rejectionReason = data['rejection_reason'];
     } else {
       // Handle API error response here
       throw Exception('Failed to load verification data');
@@ -87,7 +95,15 @@ class VerificationController {
       } else if (data.currentStep == 2) {
         Navigator.pushNamed(context, '/driver-details');
       } else if (data.currentStep == 3) {
-        Navigator.pushNamed(context, '/verify-im-progress');
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VerificationScreen(
+              isRejected: data.isRejected,
+              rejectionReason: data.rejectionReason,
+            ),
+          ),
+        );
       }
     } catch (e) {
       print('Error loading verification data: $e');

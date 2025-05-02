@@ -162,3 +162,25 @@ class PartnerVerificationView(APIView):
             return Response({'error': 'Invalid token'}, status=401)
         except PartnerVerification.DoesNotExist:
             return Response({'message': 'Verification data not found'}, status=404)
+
+    def patch(self, request):
+        token_key = request.headers.get('Authorization', '').replace('Token ', '')
+        try:
+            token = Token.objects.get(key=token_key)
+            verification = PartnerVerification.objects.get(partner=token.partner)
+            data = request.data
+
+            if 'current_step' in data:
+                verification.current_step = data['current_step']
+            if 'is_rejected' in data:
+                verification.is_rejected = data['is_rejected']
+            if 'rejection_reason' in data:
+                verification.rejection_reason = data['rejection_reason']
+
+            verification.save()
+            serializer = PartnerVerificationSerializer(verification)
+            return Response(serializer.data, status=200)
+        except Token.DoesNotExist:
+            return Response({'error': 'Invalid token'}, status=401)
+        except PartnerVerification.DoesNotExist:
+            return Response({'message': 'Verification data not found'}, status=404)
