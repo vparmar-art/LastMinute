@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.29.86:8000/api/users/partner';
+  static const String baseUrl = 'http://192.168.0.100:8000/api/users/partner';
 
   Future<String> sayHello() async {
     final response = await http.get(Uri.parse('$baseUrl/hello/'));

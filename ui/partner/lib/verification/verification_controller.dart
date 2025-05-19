@@ -42,7 +42,7 @@ class VerificationData {
   // Method to load data from API
   Future<void> fetchVerificationData(String token) async {
     final response = await http.get(
-      Uri.parse('http://192.168.29.86:8000/api/users/partner/verification/'),
+      Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 

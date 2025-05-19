@@ -9,7 +9,7 @@ from .serializers import BookingSerializer
 class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
-        fields = ['id', 'customer', 'partner', 'partner_verification', 'pickup_location', 
+        fields = ['id', 'customer', 'partner', 'pickup_location', 
                   'drop_location', 'pickup_time', 'drop_time', 'status', 'amount', 
                   'created_at', 'modified_at']
 
@@ -27,12 +27,10 @@ def booking_list(request):
         # Ensure customer and partner exist
         customer = Customer.objects.get(id=request.data['customer'])
         partner = Partner.objects.get(id=request.data['partner'])
-        partner_verification = partner.verification  # Assuming partner has verification linked
 
         booking = Booking(
             customer=customer,
             partner=partner,
-            partner_verification=partner_verification,
             pickup_location=request.data['pickup_location'],
             drop_location=request.data['drop_location'],
             pickup_time=request.data['pickup_time'],

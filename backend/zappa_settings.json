@@ -10,9 +10,18 @@
             "s3transfer",
             "concurrent"
         ],
+        "include": ["db.sqlite3"],
         "profile_name": null,
         "project_name": "main",
         "runtime": "python3.12",
-        "s3_bucket": "zappa-deployments-last-minute"
+        "s3_bucket": "zappa-deployments-last-minute",
+        "environment_variables": {
+            "DJANGO_SUPERUSER_USERNAME": "admin",
+            "DJANGO_SUPERUSER_EMAIL": "admin@example.com",
+            "DJANGO_SUPERUSER_PASSWORD": "adminpassword"
+        },
+        "serve_static": true,
+        "postbuild_script": "python manage.py collectstatic --noinput",
+        "post_package": "USE_S3_STATICFILES=1 python manage.py collectstatic --noinput"
     }
 }

@@ -22,7 +22,7 @@ class VerificationScreen extends StatelessWidget {
     }
 
     final response = await http.patch(
-      Uri.parse('http://192.168.29.86:8000/api/users/partner/verification/'),
+      Uri.parse('http://192.168.29.86:8000/api/users/partner/profile/'),
       headers: {
         'Authorization': 'Token $token',
         'Content-Type': 'application/json',

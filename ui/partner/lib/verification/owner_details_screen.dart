@@ -31,7 +31,7 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.29.86:8000/api/vehicles/types/'),
+      Uri.parse('http://192.168.0.100:8000/api/vehicles/types/'),
       headers: {'Authorization': 'Token $token'},
     );
 
@@ -52,7 +52,7 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.29.86:8000/api/users/partner/verification/'),
+      Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
@@ -80,7 +80,7 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
     if (token == null) return;
 
     final response = await http.post(
-      Uri.parse('http://192.168.29.86:8000/api/users/partner/verification/'),
+      Uri.parse('http://192.168.0.100:8000/a/'),
       headers: {
         'Authorization': 'Token $token',
         'Content-Type': 'application/json',  // Ensure this header is set

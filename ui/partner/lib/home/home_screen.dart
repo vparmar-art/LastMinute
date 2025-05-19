@@ -172,7 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.29.86:8000/api/users/partner/profile/'),
+      Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
@@ -192,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.29.86:8000/api/bookings/list/'),
+      Uri.parse('http://192.168.0.100:8000/api/bookings/list/'),
       headers: {'Authorization': 'Token $token'},
     );
 

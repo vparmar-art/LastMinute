@@ -33,7 +33,7 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.29.86:8000/api/users/partner/verification/'),
+      Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
@@ -55,7 +55,7 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
     final token = prefs.getString('auth_token');
     if (token == null) return;
 
-    final uri = Uri.parse('http://192.168.29.86:8000/api/users/partner/verification/');
+    final uri = Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/');
     final request = http.MultipartRequest('POST', uri)
       ..headers['Authorization'] = 'Token $token'
       ..fields['driver_name'] = _driverNameController.text
@@ -72,7 +72,7 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
     if (response.statusCode == 200 || response.statusCode == 201) {
       print('Driver details saved successfully');
       if (context.mounted) {
-        Navigator.pushNamed(context, '/verify-im-progress');
+        Navigator.pushNamed(context, '/verify-in-progress');
       }
     } else {
       print('Failed to save driver details');

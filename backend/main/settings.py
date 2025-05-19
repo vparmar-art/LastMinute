@@ -32,6 +32,8 @@ ALLOWED_HOSTS = [
     "*"
 ]
 
+IS_LAMBDA = 'AWS_LAMBDA_FUNCTION_NAME' in os.environ
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -51,21 +53,25 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
-        'file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join('/Users/vikash/personal/LastMinute/backend/app.log'),
-            'formatter': 'verbose',
-        },
+        **({
+            'file': {
+                'level': 'DEBUG',
+                'class': 'logging.FileHandler',
+                'filename': os.path.join(
+                    '/Users/vikash/personal/LastMinute/backend/app.log' if not IS_LAMBDA else '/tmp/app.log'
+                ),
+                'formatter': 'verbose',
+            }
+        } if not IS_LAMBDA or os.access('/tmp', os.W_OK) else {})
     },
     'loggers': {
         'django': {
             'handlers': [],
-            'level': 'DEBUG',  # Change this to DEBUG
+            'level': 'DEBUG',
             'propagate': False,
         },
-        'users': {  # Logger for your 'users' app
-            'handlers': ['console', 'file'],
+        'users': {
+            'handlers': ['console'] + (['file'] if not IS_LAMBDA or os.access('/tmp', os.W_OK) else []),
             'level': 'DEBUG',
             'propagate': True,
         },
@@ -88,7 +94,8 @@ INSTALLED_APPS = [
     'graphene_django',
     'users',
     'vehicles',
-    'bookings'
+    'bookings',
+    'storages'
 ]
 
 GRAPHENE = {
@@ -131,8 +138,12 @@ WSGI_APPLICATION = 'main.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres',
+        'USER': 'vikash',
+        'PASSWORD': 'vikashparmar',
+        'HOST': 'last-minute-dev.cm96escgy66l.us-east-1.rds.amazonaws.com',
+        'PORT': '5432',
     }
 }
 
@@ -173,8 +184,6 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -189,3 +198,24 @@ TWILIO_ACCOUNT_SID = 'AC1001ab987faf05c745493c910d4d5c3c'
 TWILIO_AUTH_TOKEN = 'f2aca05f15ed4f9a434a9208aebf7fee'
 TWILIO_WHATSAPP_NUMBER = 'whatsapp:+14155238886'
 TWILIO_WHATSAPP_TEMPLATE_SID = 'HX229f5a04fd0510ce1b071852155d3e75'
+
+USE_S3_STATICFILES = IS_LAMBDA or os.environ.get("USE_S3_STATICFILES") == "1"
+
+AWS_ACCESS_KEY_ID = 'AKIAQZFG5AII5U73LK6Y'
+AWS_SECRET_ACCESS_KEY = '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'
+AWS_STORAGE_BUCKET_NAME = 'zappa-deployments-last-minute'
+AWS_S3_REGION_NAME = 'us-east-1'  # Change if using a different region
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+
+if USE_S3_STATICFILES:
+    AWS_LOCATION = "django-admin-static"
+    STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+    STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
+else:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+    STATIC_URL = '/static/'
+
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # Always set for non-S3 case
+static_dir = os.path.join(BASE_DIR, 'static')
+if os.path.exists(static_dir):
+    STATICFILES_DIRS = [static_dir]

@@ -1,5 +1,5 @@
 from django.db import models
-from users.models import Partner, PartnerVerification, Customer
+from users.models import Partner, Customer
 from django.utils import timezone
 
 # Create your models here.
@@ -7,7 +7,6 @@ from django.utils import timezone
 class Booking(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='bookings')
     partner = models.ForeignKey(Partner, on_delete=models.CASCADE, related_name='bookings')
-    partner_verification = models.ForeignKey(PartnerVerification, on_delete=models.CASCADE, related_name='bookings')
     pickup_location = models.CharField(max_length=255)
     drop_location = models.CharField(max_length=255)
     pickup_time = models.DateTimeField()

@@ -29,26 +29,35 @@ class VehicleType {
 }
 
 class VehiclesPart extends StatefulWidget {
-  const VehiclesPart({super.key});
+  final double distanceKm;
+  const VehiclesPart({super.key, required this.distanceKm});
 
   @override
   State<VehiclesPart> createState() => _VehiclesPartState();
 }
 
 class _VehiclesPartState extends State<VehiclesPart> {
+  String formatVehicleName(String name) {
+    return name
+        .split('_')
+        .map((word) => word[0].toUpperCase() + word.substring(1))
+        .join(' ');
+  }
   List<VehicleType> vehicleTypes = [];
   bool isLoading = true;
   int selectedIndex = 0;
+  double distanceKm = 0.0;
 
   @override
   void initState() {
     super.initState();
+    distanceKm = widget.distanceKm;
     fetchVehicleTypes();
   }
 
   Future<void> fetchVehicleTypes() async {
     final response = await http.get(
-      Uri.parse('http://192.168.29.86:8000/api/vehicles/types/'),
+      Uri.parse('http://192.168.0.100:8000/api/vehicles/types/'),
     );
 
     if (response.statusCode == 200) {
@@ -150,7 +159,7 @@ class _VehiclesPartState extends State<VehiclesPart> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              vehicle.name,
+                              formatVehicleName(vehicle.name),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 16,
@@ -158,7 +167,7 @@ class _VehiclesPartState extends State<VehiclesPart> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              "₹${vehicle.baseFare.toStringAsFixed(0)} base + ₹${vehicle.farePerKm}/km",
+                              "Total Fare: ₹${(vehicle.baseFare + vehicle.farePerKm * distanceKm).toStringAsFixed(0)} (${distanceKm.toStringAsFixed(1)} km)",
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.grey.shade700,
@@ -186,7 +195,7 @@ class _VehiclesPartState extends State<VehiclesPart> {
               padding: const EdgeInsets.all(16.0),
               child: ElevatedButton(
                 onPressed: () {
-                  // TODO: Add your "Add Details" logic here
+                  Navigator.pushNamed(context, '/package-details');
                 },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),

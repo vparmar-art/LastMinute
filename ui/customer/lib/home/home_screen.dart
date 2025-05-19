@@ -38,6 +38,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _debounce;
   double _vehiclePanelHeight = 250.0;
 
+  double? _calculatedDistanceKm;
+
   @override
   void initState() {
     super.initState();
@@ -197,6 +199,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final toLatLng =
         await _apiService.getLatLngFromSuggestion(_toController.text);
     if (fromLatLng == null || toLatLng == null) return;
+
+    final distanceInMeters = Geolocator.distanceBetween(
+      fromLatLng.latitude,
+      fromLatLng.longitude,
+      toLatLng.latitude,
+      toLatLng.longitude,
+    );
+    _calculatedDistanceKm = distanceInMeters / 1000;
 
     _addMarker(fromLatLng, 'from', _fromController.text);
     _addMarker(toLatLng, 'to', _toController.text);
@@ -399,8 +409,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: ListView(
                       controller: scrollController,
-                      children: const [
-                        VehiclesPart(),
+                      children: [
+                        VehiclesPart(distanceKm: _calculatedDistanceKm ?? 0),
                       ],
                     ),
                   );

@@ -7,24 +7,6 @@ class Partner(models.Model):
     password = models.CharField(max_length=128)  # Optional: use for login
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return self.phone_number
-
-class PartnerOTP(models.Model):
-    partner = models.ForeignKey(Partner, on_delete=models.CASCADE, related_name='otps')
-    code = models.CharField(max_length=6)
-    created_at = models.DateTimeField(auto_now_add=True)
-    is_verified = models.BooleanField(default=False)
-    session_id = models.CharField(max_length=64, null=True, blank=True)
-
-    def is_expired(self):
-        return timezone.now() > self.created_at + timezone.timedelta(minutes=5)
-
-    def __str__(self):
-        return f"{self.partner.phone_number} - {self.code}"
-
-class PartnerVerification(models.Model):
-    partner = models.OneToOneField('Partner', on_delete=models.CASCADE, related_name='verification')
     owner_full_name = models.CharField(max_length=100, blank=True)
     vehicle_type = models.CharField(max_length=50, choices=VehicleType.VEHICLE_CHOICES, null=True, blank=True, default=None)
     vehicle_number = models.CharField(max_length=50, blank=True)
@@ -45,16 +27,20 @@ class PartnerVerification(models.Model):
     is_rejected = models.BooleanField(default=False)
     rejection_reason = models.TextField(blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-from django.db.models.signals import post_save
-from django.dispatch import receiver
+    def __str__(self):
+        return self.phone_number
 
-# Signal to create a PartnerVerification record when a Partner is created
-@receiver(post_save, sender=Partner)
-def create_partner_verification(sender, instance, created, **kwargs):
-    if created:
-        from users.models.partner import PartnerVerification  # Local import inside the signal
-        # Create a PartnerVerification instance linked to the newly created Partner
-        PartnerVerification.objects.create(partner=instance)
+class PartnerOTP(models.Model):
+    partner = models.ForeignKey(Partner, on_delete=models.CASCADE, related_name='otps')
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_verified = models.BooleanField(default=False)
+    session_id = models.CharField(max_length=64, null=True, blank=True)
+
+    def is_expired(self):
+        return timezone.now() > self.created_at + timezone.timedelta(minutes=5)
+
+    def __str__(self):
+        return f"{self.partner.phone_number} - {self.code}"

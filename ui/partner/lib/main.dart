@@ -58,7 +58,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/owner-details': (context) => const OwnerDetailsScreen(),
         '/driver-details': (context) => const DriverDetailsScreen(),
-        '/verify-im-progress': (context) {
+        '/verify-in-progress': (context) {
           final controller = VerificationController();
           return VerificationScreen(
             isRejected: controller.data.isRejected,
