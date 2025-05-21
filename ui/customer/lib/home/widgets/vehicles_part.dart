@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../../home/home_screen.dart';
 
 class VehicleType {
   final String name;
@@ -30,7 +31,8 @@ class VehicleType {
 
 class VehiclesPart extends StatefulWidget {
   final double distanceKm;
-  const VehiclesPart({super.key, required this.distanceKm});
+  final BookingData bookingData;
+  const VehiclesPart({super.key, required this.distanceKm, required this.bookingData});
 
   @override
   State<VehiclesPart> createState() => _VehiclesPartState();
@@ -64,6 +66,12 @@ class _VehiclesPartState extends State<VehiclesPart> {
       final List<dynamic> data = jsonDecode(response.body);
       setState(() {
         vehicleTypes = data.map((v) => VehicleType.fromJson(v)).toList();
+        // Patch: update bookingData fields if vehicleTypes is not empty
+        if (vehicleTypes.isNotEmpty) {
+          final selectedVehicle = vehicleTypes[selectedIndex];
+          widget.bookingData.selectedVehicleType = selectedVehicle.name;
+          widget.bookingData.totalFare = (selectedVehicle.baseFare + selectedVehicle.farePerKm * distanceKm).round();
+        }
         isLoading = false;
       });
     } else {
@@ -115,6 +123,8 @@ class _VehiclesPartState extends State<VehiclesPart> {
                 onTap: () {
                   setState(() {
                     selectedIndex = index;
+                    widget.bookingData.selectedVehicleType = vehicle.name;
+                    widget.bookingData.totalFare = (vehicle.baseFare + vehicle.farePerKm * distanceKm).round();
                   });
                 },
                 child: Container(
@@ -195,7 +205,11 @@ class _VehiclesPartState extends State<VehiclesPart> {
               padding: const EdgeInsets.all(16.0),
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/package-details');
+                  Navigator.pushNamed(
+                    context,
+                    '/package-details',
+                    arguments: widget.bookingData,
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),

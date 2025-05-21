@@ -68,12 +68,13 @@ class _LoginScreenState extends State<LoginScreen> {
         _error = null;
       });
       try {
-        final token = await _apiService.verifyOtp(phone, otp);
-        print('Login successful. Token: $token');
+        final data = await _apiService.verifyOtp(phone, otp);
+        print('Login successful. data: $data');
 
         // Save token locally
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('auth_token', token);
+        await prefs.setString('auth_token', data['token']);
+        await prefs.setString('customer', data['customer']);
 
         // Navigate to the home screen (example)
         Navigator.pushReplacementNamed(context, '/home');

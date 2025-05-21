@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../../home/home_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PackageDetailsScreen extends StatefulWidget {
-  const PackageDetailsScreen({super.key});
+  final BookingData bookingData;
+  const PackageDetailsScreen({super.key, required this.bookingData});
 
   @override
   State<PackageDetailsScreen> createState() => _PackageDetailsScreenState();
@@ -80,19 +83,17 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
         child: ElevatedButton(
           onPressed: () async {
             if (_formKey.currentState!.validate()) {
-              final uri = Uri.parse('http://192.168.0.100:8000/api/bookings/start/'); 
+              // Set package details from description controller
+              final prefs = await SharedPreferences.getInstance();
+              widget.bookingData.packageDetails = _descriptionController.text;
+              widget.bookingData.customer = '1';
+              print('📦 Booking data: ${jsonEncode(widget.bookingData.toJson())}');
+              final uri = Uri.parse('http://192.168.0.100:8000/api/bookings/start/');
 
               final response = await http.post(
                 uri,
                 headers: {'Content-Type': 'application/json'},
-                body: jsonEncode({
-                  'customer': 1,  // Replace with actual customer ID
-                  'pickup_location': 'Pickup Location',
-                  'drop_location': 'Drop Location',
-                  'pickup_time': DateTime.now().toIso8601String(),
-                  'drop_time': DateTime.now().add(const Duration(hours: 1)).toIso8601String(),
-                  'amount': 100.0,
-                }),
+                body: jsonEncode(widget.bookingData.toJson()),
               );
 
               if (response.statusCode == 201) {

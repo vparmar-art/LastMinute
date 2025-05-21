@@ -105,12 +105,11 @@ def start_booking(request):
     # Create booking with status 'created'
     booking = Booking(
         customer=customer,
-        pickup_location=request.data['pickup_location'],
-        drop_location=request.data['drop_location'],
-        pickup_time=request.data['pickup_time'],
-        drop_time=request.data['drop_time'],
-        amount=request.data['amount'],
-        status='created'
+        pickup_location=request.data['pickup_address'],
+        drop_location=request.data['drop_address'],
+        # amount=request.data['amount'],
+        status='created',
+        amount=request.data['totalFare']
     )
     booking.save()
 
@@ -123,7 +122,7 @@ def start_booking(request):
             "GCM": json.dumps({
                 "notification": {
                     "title": "New Booking",
-                    "body": f"Customer Name {customer.full_name}"
+                    "body": f"Customer Name {booking.customer}"
                 },
                 "data": {
                     "key": "value"

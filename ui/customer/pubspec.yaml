@@ -40,6 +40,9 @@ dependencies:
   flutter_google_places_sdk: ^0.4.0
   flutter_polyline_points: ^2.1.0
   geocoding: ^2.1.1
+  firebase_core: ^2.30.0
+  firebase_messaging: ^14.7.10
+  flutter_local_notifications: 14.0.1
 
 dev_dependencies:
   flutter_test:

@@ -92,4 +92,4 @@ class CustomerVerifyOTPView(APIView):
         token_key = str(uuid.uuid4())  # Example of using UUID for token
         token, _ = Token.objects.get_or_create(customer=customer, defaults={'key': token_key})
         logger.info(f"Token generated for customer: {phone_number} {token.key}")
-        return Response({'token': token.key})
+        return Response({'token': token.key, 'customer': customer.id})

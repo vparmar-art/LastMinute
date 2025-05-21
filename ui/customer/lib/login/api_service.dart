@@ -28,7 +28,7 @@ class ApiService {
     }
   }
 
-  Future<String> verifyOtp(String phoneNumber, String otp) async {
+  Future<Map<String, dynamic>> verifyOtp(String phoneNumber, String otp) async {
     final url = Uri.parse('$baseUrl/verify-otp/');
     final response = await http.post(
       url,
@@ -40,7 +40,7 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return data['token'];
+      return data;
     } else {
       final data = jsonDecode(response.body);
       throw Exception(data['error'] ?? 'OTP verification failed');

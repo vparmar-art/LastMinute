@@ -5,8 +5,38 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'api_service.dart';
-import 'widgets/vehicles_part.dart';
+import 'widgets/vehicles_part.dart' show VehiclesPart, BookingData;
 import 'dart:async';
+
+class BookingData {
+  String? pickupAddress;
+  LatLng? pickupLatLng;
+  String? dropAddress;
+  LatLng? dropLatLng;
+  String? selectedVehicleType;
+  String? packageDetails;
+  String? customer;
+  int? totalFare;
+  double? estimatedDistanceKm;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'pickup_address': pickupAddress,
+      'pickup_latlng': pickupLatLng != null
+          ? {'lat': pickupLatLng!.latitude, 'lng': pickupLatLng!.longitude}
+          : null,
+      'drop_address': dropAddress,
+      'drop_latlng': dropLatLng != null
+          ? {'lat': dropLatLng!.latitude, 'lng': dropLatLng!.longitude}
+          : null,
+      'vehicle_type': selectedVehicleType,
+      'package_details': packageDetails,
+      'estimated_distance_km': estimatedDistanceKm,
+      'customer': customer,
+      'totalFare': totalFare
+    };
+  }
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +48,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final String _googleApiKey = 'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II';
   late final ApiService _apiService;
+  final BookingData _bookingData = BookingData();
 
   GoogleMapController? _mapController;
   LatLng? _currentLocation;
@@ -119,6 +150,8 @@ class _HomeScreenState extends State<HomeScreen> {
         await _apiService.getAddressFromCoordinates(_currentLocation!);
     if (address != null) {
       _fromController.text = address;
+      _bookingData.pickupAddress = address;
+      _bookingData.pickupLatLng = _currentLocation;
       _addMarker(_currentLocation!, 'from', address);
       _isFromSelected = true;
     }
@@ -176,6 +209,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _fromController.text = suggestion;
         _isFromSelected = true;
       });
+      _bookingData.pickupAddress = suggestion;
+      _bookingData.pickupLatLng = latLng;
     } else {
       _toFocus.unfocus();
       setState(() {
@@ -183,6 +218,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _toController.text = suggestion;
         _isToSelected = true;
       });
+      _bookingData.dropAddress = suggestion;
+      _bookingData.dropLatLng = latLng;
     }
 
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -207,6 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
       toLatLng.longitude,
     );
     _calculatedDistanceKm = distanceInMeters / 1000;
+    _bookingData.estimatedDistanceKm = _calculatedDistanceKm;
 
     _addMarker(fromLatLng, 'from', _fromController.text);
     _addMarker(toLatLng, 'to', _toController.text);
@@ -410,7 +448,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: ListView(
                       controller: scrollController,
                       children: [
-                        VehiclesPart(distanceKm: _calculatedDistanceKm ?? 0),
+                        VehiclesPart(
+                          distanceKm: _calculatedDistanceKm ?? 0,
+                          bookingData: _bookingData,
+                        ),
                       ],
                     ),
                   );
