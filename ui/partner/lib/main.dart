@@ -14,53 +14,69 @@ import 'verification/verification_controller.dart';
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void onDidReceiveNotificationResponse(NotificationResponse response) {
-  print('🔔 Notification tapped: ${response.payload}');
+  print('🔔 Notification tapped: ${response.payload}, Action ID: ${response.actionId}');
+  if (response.actionId == 'ACCEPT') {
+    print('✅ Booking accepted.');
+  } else if (response.actionId == 'REJECT') {
+    print('❌ Booking rejected.');
+  }
 }
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 
-  print('Background message data keys: ${message.data.keys}');
-  print('message.notification: ${message.notification}');
-  if (message.data.containsKey('GCM')) {
-    print('📦 Raw GCM: ${message.data['GCM']}');
-  }
+  final rawPayload = message.data['default'];
+  print('Message received: $rawPayload');
 
   String? title = message.notification?.title;
   String? body = message.notification?.body;
 
   if (title == null || body == null) {
-    String? gcmPayload = message.data['GCM'];
-    if (gcmPayload != null) {
-      try {
-        final gcmData = jsonDecode(gcmPayload);
-        final notification = gcmData['notification'];
-        title = notification?['title'] ?? title;
-        body = notification?['body'] ?? body;
-      } catch (_) {}
+    try {
+      final defaultData = jsonDecode(rawPayload);
+      final gcmString = defaultData['GCM'];
+      final gcmData = jsonDecode(gcmString);
+      final notification = gcmData['notification'];
+      title = notification?['title'] ?? title;
+      body = notification?['body'] ?? body;
+    } catch (e) {
+      print('❌ Failed to parse notification: $e');
     }
   }
 
   print('Background message final title: $title, body: $body');
 
-  await flutterLocalNotificationsPlugin.show(
-    message.hashCode,
-    title ?? 'New Notification',
-    body ?? 'You received a new message',
-    const NotificationDetails(
-      android: AndroidNotificationDetails(
-        'high_priority_channel',
-        'High Priority Notifications',
-        channelDescription: 'Notifications shown over other apps',
-        importance: Importance.max,
-        priority: Priority.high,
-        playSound: true,
-        fullScreenIntent: true,
-        ticker: 'ticker',
-      ),
+await flutterLocalNotificationsPlugin.show(
+  message.hashCode,
+  title ?? 'New Notification',
+  body ?? 'You received a new message',
+  const NotificationDetails(
+    android: AndroidNotificationDetails(
+      'high_priority_channel',
+      'High Priority Notifications',
+      channelDescription: 'Notifications shown over other apps',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      // fullScreenIntent: true,
+      ticker: 'ticker',
+      actions: <AndroidNotificationAction>[
+        AndroidNotificationAction(
+          'accept_action', // Action ID
+          'Accept',
+          showsUserInterface: true,
+        ),
+        AndroidNotificationAction(
+          'reject_action', // Action ID
+          'Reject',
+          showsUserInterface: true,
+        ),
+      ],
     ),
-  );
+  ),
+  payload: 'booking_id=123',
+);
 
   print('🔔 Handling a background message: ${message.messageId}, title: $title, body: $body');
 }
@@ -71,8 +87,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
+const AndroidInitializationSettings initializationSettingsAndroid =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
 
   final InitializationSettings initializationSettings = InitializationSettings(
     android: initializationSettingsAndroid,
