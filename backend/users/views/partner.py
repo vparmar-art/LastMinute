@@ -8,6 +8,7 @@ from django.conf import settings
 import random
 import logging
 import uuid
+from ..sns import register_device_with_sns
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,17 @@ class PartnerVerifyOTPView(APIView):
         token_key = str(uuid.uuid4())  # Example of using UUID for token
         token, _ = Token.objects.get_or_create(partner=partner, defaults={'key': token_key})
         logger.info(f"Token generated for partner: {phone_number} {token.key}")
+
+        # Update device endpoint ARN if provided
+        device_endpoint_arn = request.data.get('device_endpoint_arn')
+        if device_endpoint_arn:
+            try:
+                endpoint_arn = register_device_with_sns(device_endpoint_arn)
+                partner.device_endpoint_arn = endpoint_arn
+                partner.save()
+            except Exception as e:
+                logger.error(f"Failed to register device with SNS for {phone_number}: {str(e)}")
+
         return Response({'token': token.key})
 
 class PartnerProfileView(APIView):

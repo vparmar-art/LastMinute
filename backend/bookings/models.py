@@ -6,7 +6,7 @@ from django.utils import timezone
 
 class Booking(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='bookings')
-    partner = models.ForeignKey(Partner, on_delete=models.CASCADE, related_name='bookings')
+    partner = models.ForeignKey(Partner, on_delete=models.SET_NULL, null=True, blank=True)
     pickup_location = models.CharField(max_length=255)
     drop_location = models.CharField(max_length=255)
     pickup_time = models.DateTimeField()
@@ -27,7 +27,7 @@ class Booking(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Booking {self.id} - {self.customer.phone_number} -> {self.partner.phone_number}"
+        return f"Booking {self.id}"
 
     class Meta:
         ordering = ['-created_at']

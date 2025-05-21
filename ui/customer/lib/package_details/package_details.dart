@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class PackageDetailsScreen extends StatefulWidget {
   const PackageDetailsScreen({super.key});
@@ -76,12 +78,32 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         color: theme.scaffoldBackgroundColor,
         child: ElevatedButton(
-          onPressed: () {
+          onPressed: () async {
             if (_formKey.currentState!.validate()) {
-              // Handle booking logic
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Package booked!')),
+              final uri = Uri.parse('http://192.168.0.100:8000/api/bookings/start/'); 
+
+              final response = await http.post(
+                uri,
+                headers: {'Content-Type': 'application/json'},
+                body: jsonEncode({
+                  'customer': 1,  // Replace with actual customer ID
+                  'pickup_location': 'Pickup Location',
+                  'drop_location': 'Drop Location',
+                  'pickup_time': DateTime.now().toIso8601String(),
+                  'drop_time': DateTime.now().add(const Duration(hours: 1)).toIso8601String(),
+                  'amount': 100.0,
+                }),
               );
+
+              if (response.statusCode == 201) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Package booked!')),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Booking failed: ${response.statusCode}')),
+                );
+              }
             }
           },
           style: ElevatedButton.styleFrom(

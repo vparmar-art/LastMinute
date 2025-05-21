@@ -14,6 +14,7 @@ class Partner(models.Model):
     driver_name = models.CharField(max_length=100, blank=True)
     driver_license = models.CharField(max_length=50, blank=True)
     driver_phone = models.CharField(max_length=20, blank=True)
+    device_endpoint_arn = models.CharField(max_length=512, blank=True, null=True)
 
     # Documents
     license_document = models.FileField(upload_to='documents/licenses/', null=True, blank=True)

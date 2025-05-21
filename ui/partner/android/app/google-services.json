@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "991895842659",
+    "project_id": "lastminute-6b363",
+    "storage_bucket": "lastminute-6b363.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:991895842659:android:0e2bbbcf793d72778fad56",
+        "android_client_info": {
+          "package_name": "com.example.partner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2zUus2uiz0nHDKI1yRGY3nPa9bpjjqVQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

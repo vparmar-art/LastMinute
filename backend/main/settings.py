@@ -206,6 +206,7 @@ AWS_SECRET_ACCESS_KEY = 'whSgnkpjus++V2CxZPmXfploPbz2BUWTngjnuvgX'
 AWS_STORAGE_BUCKET_NAME = 'zappa-deployments-last-minute'
 AWS_S3_REGION_NAME = 'us-east-1'  # Change if using a different region
 AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+AWS_SNS_ARN = 'arn:aws:sns:us-east-1:054037119505:app/GCM/notify-driver'
 
 if USE_S3_STATICFILES:
     AWS_LOCATION = "django-admin-static"

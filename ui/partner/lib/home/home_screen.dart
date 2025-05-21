@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,17 +14,81 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   bool _isLive = false;
   double _dragPosition = 0.0;
   double _maxDrag = 0.0;
   int _totalBookings = 0;
   double _totalEarnings = 0.0;
+  String _notificationMessage = 'No new messages';
 
   @override
   void initState() {
     super.initState();
     _fetchPartnerDetails();
     _fetchTotalBookings();
+
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    final InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+    );
+    flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      print('🔥 Foreground message received');
+      print('Full message data: ${message.data}');
+
+      String? gcmPayload;
+
+      // Try to find GCM payload from top-level or nested in 'default'
+      if (message.data['GCM'] != null) {
+        gcmPayload = message.data['GCM'];
+      } else if (message.data['default'] != null) {
+        try {
+          final defaultJson = jsonDecode(message.data['default']);
+          gcmPayload = defaultJson['GCM'];
+        } catch (e) {
+          print('❌ Error parsing message.data["default"]: $e');
+        }
+      }
+
+      Map<String, dynamic>? gcmData;
+      if (gcmPayload != null) {
+        try {
+          gcmData = jsonDecode(gcmPayload);
+        } catch (e) {
+          print('❌ Error decoding GCM payload: $e');
+        }
+      }
+
+      final title = gcmData?['notification']?['title'] ?? message.notification?.title ?? '[No Title]';
+      final body = gcmData?['notification']?['body'] ?? message.notification?.body ?? '[No Body]';
+
+      print('🔔 Title: $title');
+      print('📦 Data: ${gcmData ?? message.data}');
+
+      if (!mounted) return;
+      setState(() {
+        _notificationMessage = 'Title: $title\nBody: $body';
+      });
+
+      await flutterLocalNotificationsPlugin.show(
+        message.hashCode,
+        title,
+        body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'default_channel',
+            'General Notifications',
+            channelDescription: 'This channel is used for general notifications.',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+          ),
+        ),
+      );
+    });
   }
 
   @override
@@ -47,6 +113,18 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Card(
+              color: Colors.amber.shade100,
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Text(
+                  _notificationMessage,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             const Text(
               'Welcome, Driver!',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),

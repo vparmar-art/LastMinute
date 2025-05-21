@@ -1,9 +1,11 @@
+import json
 from rest_framework import status, serializers
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .models import Booking
 from users.models import Customer, Partner
 from .serializers import BookingSerializer
+from .sns import send_push_notification
 
 # Serializer for Booking
 class BookingSerializer(serializers.ModelSerializer):
@@ -87,3 +89,53 @@ def update_booking_status(request, pk):
         return Response(BookingSerializer(booking).data, status=status.HTTP_200_OK)
     else:
         return Response({'error': 'Status field is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# View to start a booking and send push notifications to all partners
+@api_view(['POST'])
+def start_booking(request):
+    """
+    Create a new booking and send a push notification to all partners.
+    """
+    try:
+        customer = Customer.objects.get(id=request.data['customer'])
+    except Customer.DoesNotExist:
+        return Response({'error': 'Customer not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Create booking with status 'created'
+    booking = Booking(
+        customer=customer,
+        pickup_location=request.data['pickup_location'],
+        drop_location=request.data['drop_location'],
+        pickup_time=request.data['pickup_time'],
+        drop_time=request.data['drop_time'],
+        amount=request.data['amount'],
+        status='created'
+    )
+    booking.save()
+
+    # Send push notifications to all partners with endpoint ARN
+    partners = Partner.objects.exclude(device_endpoint_arn__isnull=True).exclude(device_endpoint_arn='')
+    for partner in partners:
+        print(f"device_endpoint_arn {partner.device_endpoint_arn}")
+        payload = {
+            "default": "Fallback message",
+            "GCM": json.dumps({
+                "notification": {
+                    "title": "New Booking",
+                    "body": f"Customer Name {customer.full_name}"
+                },
+                "data": {
+                    "key": "value"
+                }
+            })
+        }
+        try:
+            send_push_notification(
+                partner.device_endpoint_arn,
+                payload=payload
+            )
+        except Exception:
+            continue  # Log or handle failure if needed
+
+    return Response(BookingSerializer(booking).data, status=status.HTTP_201_CREATED)

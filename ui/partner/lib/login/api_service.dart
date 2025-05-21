@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class ApiService {
   static const String baseUrl = 'http://192.168.0.100:8000/api/users/partner';
@@ -29,12 +30,14 @@ class ApiService {
   }
 
   Future<String> verifyOtp(String phoneNumber, String otp) async {
+    final fcmToken = await FirebaseMessaging.instance.getToken();
     final url = Uri.parse('$baseUrl/verify-otp/');
     final response = await http.post(
       url,
       body: {
         'phone_number': phoneNumber,
         'otp': otp,
+        'device_endpoint_arn': fcmToken ?? '', // send token as device_endpoint_arn
       },
     );
 
