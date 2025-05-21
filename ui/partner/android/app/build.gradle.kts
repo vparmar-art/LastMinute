@@ -27,7 +27,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.partner"
+        applicationId = "com.example.driver"
         minSdk = 21
         targetSdk = 35
         versionCode = 1

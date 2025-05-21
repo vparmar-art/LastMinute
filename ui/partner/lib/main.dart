@@ -11,65 +11,53 @@ import 'verification/driver_details_screen.dart';
 import 'verification/verification_screen.dart';
 import 'verification/verification_controller.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+void onDidReceiveNotificationResponse(NotificationResponse response) {
+  print('🔔 Notification tapped: ${response.payload}');
+}
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  final InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-  );
-
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  print('Background message data keys: ${message.data.keys}');
+  print('message.notification: ${message.notification}');
+  if (message.data.containsKey('GCM')) {
+    print('📦 Raw GCM: ${message.data['GCM']}');
+  }
 
   String? title = message.notification?.title;
   String? body = message.notification?.body;
 
-  // Try extracting from nested GCM data
   if (title == null || body == null) {
     String? gcmPayload = message.data['GCM'];
     if (gcmPayload != null) {
       try {
         final gcmData = jsonDecode(gcmPayload);
-        title = gcmData['notification']?['title'] ?? title;
-        body = gcmData['notification']?['body'] ?? body;
+        final notification = gcmData['notification'];
+        title = notification?['title'] ?? title;
+        body = notification?['body'] ?? body;
       } catch (_) {}
     }
   }
 
-  // Also try extracting from nested 'default' JSON string if GCM missing
-  if (title == null || body == null) {
-    final defaultPayload = message.data['default'];
-    if (defaultPayload != null && defaultPayload is String) {
-      try {
-        final defaultJson = jsonDecode(defaultPayload);
-        final gcmFromDefault = defaultJson['GCM'];
-        if (gcmFromDefault != null) {
-          final gcmData = jsonDecode(gcmFromDefault);
-          title = gcmData['notification']?['title'] ?? title;
-          body = gcmData['notification']?['body'] ?? body;
-        }
-      } catch (_) {}
-    }
-  }
+  print('Background message final title: $title, body: $body');
 
   await flutterLocalNotificationsPlugin.show(
     message.hashCode,
-    title ?? 'Background Notification',
-    body ?? '',
+    title ?? 'New Notification',
+    body ?? 'You received a new message',
     const NotificationDetails(
       android: AndroidNotificationDetails(
-        'default_channel',
-        'General Notifications',
-        channelDescription: 'This channel is used for general notifications.',
+        'high_priority_channel',
+        'High Priority Notifications',
+        channelDescription: 'Notifications shown over other apps',
         importance: Importance.max,
         priority: Priority.high,
         playSound: true,
+        fullScreenIntent: true,
+        ticker: 'ticker',
       ),
     ),
   );
@@ -83,8 +71,6 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -92,7 +78,22 @@ Future<void> main() async {
     android: initializationSettingsAndroid,
   );
 
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse: onDidReceiveNotificationResponse,
+  );
+
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'high_priority_channel',
+    'High Priority Notifications',
+    description: 'Notifications shown over other apps',
+    importance: Importance.max,
+    playSound: true,
+  );
+
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
 
   NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
     alert: true,
@@ -103,6 +104,8 @@ Future<void> main() async {
 
   String? fcmToken = await FirebaseMessaging.instance.getToken();
   print('FCM Token: $fcmToken');
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   runApp(const MyApp());
 }
@@ -147,6 +150,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'LastMinute',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
