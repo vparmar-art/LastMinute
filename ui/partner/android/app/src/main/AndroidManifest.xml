@@ -1,6 +1,11 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.INTERNET"/>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application
         android:label="partner"
         android:name="${applicationName}"
@@ -9,6 +14,11 @@
         android:allowBackup="true"
         android:fullBackupContent="true"
         android:theme="@style/LaunchTheme">
+        <service
+        android:name="id.flutter.flutter_background_service.BackgroundService"
+        android:exported="false"
+        android:foregroundServiceType="location"
+        tools:replace="android:exported" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

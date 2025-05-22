@@ -1,7 +1,29 @@
-from rest_framework import serializers
+from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from .models import Booking
 
-class BookingSerializer(serializers.ModelSerializer):
+class BookingSerializer(GeoFeatureModelSerializer):
     class Meta:
         model = Booking
-        fields = '__all__'
+        geo_field = 'pickup_latlng'  # Primary geographic field
+        fields = [
+            'id',
+            'customer',
+            'pickup_address',
+            'pickup_latlng',
+            'drop_address',
+            'drop_latlng',
+            'vehicle_type',
+            'package_details',
+            'estimated_distance_km',
+            'total_fare',
+            'status',
+            'pickup_time',
+            'drop_time',
+            'created_at',
+            'updated_at',
+            'description',
+            'weight',
+            'dimensions',
+            'instructions',
+            'distance_km'
+        ]

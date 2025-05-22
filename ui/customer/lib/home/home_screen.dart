@@ -14,10 +14,13 @@ class BookingData {
   String? dropAddress;
   LatLng? dropLatLng;
   String? selectedVehicleType;
-  String? packageDetails;
+  String? description;
+  String? weight;
+  String? dimensions;
+  String? instructions;
+  double? distanceKm;
   String? customer;
   int? totalFare;
-  double? estimatedDistanceKm;
 
   Map<String, dynamic> toJson() {
     return {
@@ -30,8 +33,11 @@ class BookingData {
           ? {'lat': dropLatLng!.latitude, 'lng': dropLatLng!.longitude}
           : null,
       'vehicle_type': selectedVehicleType,
-      'package_details': packageDetails,
-      'estimated_distance_km': estimatedDistanceKm,
+      'description': description,
+      'weight': weight,
+      'dimensions': dimensions,
+      'instructions': instructions,
+      'distance_km': distanceKm,
       'customer': customer,
       'totalFare': totalFare
     };
@@ -243,8 +249,8 @@ class _HomeScreenState extends State<HomeScreen> {
       toLatLng.latitude,
       toLatLng.longitude,
     );
-    _calculatedDistanceKm = distanceInMeters / 1000;
-    _bookingData.estimatedDistanceKm = _calculatedDistanceKm;
+    _calculatedDistanceKm = double.parse((distanceInMeters / 1000).toStringAsFixed(2));
+    _bookingData.distanceKm = _calculatedDistanceKm;
 
     _addMarker(fromLatLng, 'from', _fromController.text);
     _addMarker(toLatLng, 'to', _toController.text);

@@ -17,13 +17,16 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
+    kotlin {
+        jvmToolchain(11)
+    }
 
     dependencies {
         coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = "11"
     }
 
     defaultConfig {

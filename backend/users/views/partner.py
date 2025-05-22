@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from users.models.partner import Partner, PartnerOTP
 from users.models.token import Token  # Now using the renamed Token model
 from twilio.rest import Client
@@ -9,6 +10,11 @@ import random
 import logging
 import uuid
 from ..sns import register_device_with_sns
+from rest_framework.parsers import JSONParser
+from django.contrib.gis.geos import Point
+# APIView for updating partner's current location
+from rest_framework.views import APIView
+from rest_framework.response import Response
 
 logger = logging.getLogger(__name__)
 
@@ -131,3 +137,32 @@ class PartnerProfileView(APIView):
             'selfie': partner.selfie.url if partner.selfie else None,
         }
         return Response({'profile': profile_data})
+
+
+class UpdatePartnerLocationView(APIView):
+    parser_classes = [JSONParser]
+
+    def post(self, request):
+        token_key = request.headers.get('Authorization', '').replace('Token ', '')
+        if not token_key:
+            return Response({'error': 'Authorization token missing'}, status=401)
+
+        try:
+            token = Token.objects.get(key=token_key)
+            partner = token.partner
+        except Token.DoesNotExist:
+            return Response({'error': 'Invalid token'}, status=401)
+
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+
+        if latitude is None or longitude is None:
+            return Response({'error': 'Latitude and longitude are required'}, status=400)
+
+        try:
+            partner.current_location = Point(float(longitude), float(latitude))
+            partner.save()
+            print(f"Partner {partner.phone_number} location updated to ({latitude}, {longitude})")
+            return Response({'message': 'Location updated successfully'})
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)

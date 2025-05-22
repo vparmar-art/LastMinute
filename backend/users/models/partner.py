@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.contrib.gis.db import models as geomodels
 from vehicles.models import VehicleType
 
 class Partner(models.Model):
@@ -14,6 +15,7 @@ class Partner(models.Model):
     driver_name = models.CharField(max_length=100, blank=True)
     driver_license = models.CharField(max_length=50, blank=True)
     driver_phone = models.CharField(max_length=20, blank=True)
+    current_location = geomodels.PointField(null=True, blank=True)
     device_endpoint_arn = models.CharField(max_length=512, blank=True, null=True)
 
     # Documents

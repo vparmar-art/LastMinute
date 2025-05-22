@@ -1,8 +1,88 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
+
+// Add these imports
+import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_background_service_android/flutter_background_service_android.dart';
+import 'package:geolocator/geolocator.dart';
+
+Future<void> initializeService() async {
+  final service = FlutterBackgroundService();
+
+  await service.configure(
+    androidConfiguration: AndroidConfiguration(
+      onStart: onStart,
+      isForegroundMode: true,
+      autoStart: true,
+    ),
+    iosConfiguration: IosConfiguration(),
+  );
+
+  await service.startService();
+}
+
+@pragma('vm:entry-point')
+void onStart(ServiceInstance service) async {
+  if (service is AndroidServiceInstance) {
+    service.setForegroundNotificationInfo(
+      title: "App is running",
+      content: "Background location service is active",
+    );
+    service.setAsForegroundService();
+  }
+
+  service.on('setAsForeground').listen((event) {
+    if (service is AndroidServiceInstance) {
+      service.setAsForegroundService();
+    }
+  });
+
+  service.on('setAsBackground').listen((event) {
+    if (service is AndroidServiceInstance) {
+      service.setAsBackgroundService();
+    }
+  });
+
+  service.on('stopService').listen((event) {
+    service.stopSelf();
+  });
+
+  Timer.periodic(const Duration(seconds: 15), (timer) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) return;
+
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final response = await http.post(
+        Uri.parse('http://192.168.0.101:8000/api/users/partner/update-location/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('🔄 Background location updated successfully');
+      } else {
+        print('❌ Failed to update location: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('🚨 Error updating location: $e');
+    }
+  });
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,8 +101,19 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+
     _fetchPartnerDetails();
     _fetchTotalBookings();
+  }
+
+  void _startBackgroundLocationUpdates() {
+    initializeService();
+    print("🚀 Background location service started");
+  }
+
+  void _stopBackgroundLocationUpdates() {
+    FlutterBackgroundService().invoke("stopService");
+    print("🛑 Background location service stopped");
   }
 
   @override
@@ -117,9 +208,11 @@ class _HomeScreenState extends State<HomeScreen> {
               if (_dragPosition > _maxDrag / 2) {
                 _isLive = true;
                 _dragPosition = _maxDrag;
+                _startBackgroundLocationUpdates();
               } else {
                 _isLive = false;
                 _dragPosition = 0;
+                _stopBackgroundLocationUpdates();
               }
             });
           },
@@ -172,7 +265,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/'),
+      Uri.parse('http://192.168.0.101:8000/api/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
@@ -192,7 +285,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.0.100:8000/api/bookings/list/'),
+      Uri.parse('http://192.168.0.101:8000/api/bookings/list/'),
       headers: {'Authorization': 'Token $token'},
     );
 

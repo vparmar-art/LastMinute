@@ -2,6 +2,7 @@ from django.contrib import admin
 from users.models.customer import Customer, CustomerOTP
 from users.models.partner import Partner, PartnerOTP
 from users.models.token import Token
+from django.contrib.gis.admin import GISModelAdmin
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
@@ -18,7 +19,7 @@ class CustomerOTPAdmin(admin.ModelAdmin):
 
 
 @admin.register(Partner)
-class PartnerAdmin(admin.ModelAdmin):
+class PartnerAdmin(GISModelAdmin):
     list_display = (
         'id',
         'phone_number',

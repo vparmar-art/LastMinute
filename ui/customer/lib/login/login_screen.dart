@@ -74,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Save token locally
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('auth_token', data['token']);
-        await prefs.setString('customer', data['customer']);
+        await prefs.setInt('customer', data['customer']);
 
         // Navigate to the home screen (example)
         Navigator.pushReplacementNamed(context, '/home');

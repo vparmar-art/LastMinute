@@ -1,4 +1,5 @@
 import json
+from django.contrib.gis.geos import Point
 from rest_framework import status, serializers
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -12,7 +13,9 @@ class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = ['id', 'customer', 'partner', 'pickup_location', 
-                  'drop_location', 'pickup_time', 'drop_time', 'status', 'amount', 
+                  'drop_location', 'pickup_latlng', 'drop_latlng',
+                  'pickup_time', 'drop_time', 'status', 'amount', 
+                  'description', 'weight', 'dimensions', 'instructions', 'distance_km',
                   'created_at', 'modified_at']
 
 @api_view(['GET', 'POST'])
@@ -40,6 +43,11 @@ def booking_list(request):
             amount=request.data['amount'],
             status='created'  # Default to created
         )
+        booking.description = request.data.get('description')
+        booking.weight = request.data.get('weight')
+        booking.dimensions = request.data.get('dimensions')
+        booking.instructions = request.data.get('instructions')
+        booking.distance_km = request.data.get('distance_km')
         booking.save()
         return Response(BookingSerializer(booking).data, status=status.HTTP_201_CREATED)
 
@@ -69,6 +77,16 @@ def booking_detail(request, pk):
             booking.pickup_time = request.data['pickup_time']
         if 'drop_time' in request.data:
             booking.drop_time = request.data['drop_time']
+        if 'description' in request.data:
+            booking.description = request.data['description']
+        if 'weight' in request.data:
+            booking.weight = request.data['weight']
+        if 'dimensions' in request.data:
+            booking.dimensions = request.data['dimensions']
+        if 'instructions' in request.data:
+            booking.instructions = request.data['instructions']
+        if 'distance_km' in request.data:
+            booking.distance_km = request.data['distance_km']
 
         booking.save()
         return Response(BookingSerializer(booking).data)
@@ -111,6 +129,25 @@ def start_booking(request):
         status='created',
         amount=request.data['totalFare']
     )
+    booking.description = request.data.get('description')
+    booking.weight = request.data.get('weight')
+    booking.dimensions = request.data.get('dimensions')
+    booking.instructions = request.data.get('instructions')
+    booking.distance_km = request.data.get('distance_km')
+
+    pickup = request.data.get('pickup_latlng')
+    drop = request.data.get('drop_latlng')
+
+    if pickup:
+        lat = float(pickup['lat'])
+        lng = float(pickup['lng'])
+        booking.pickup_latlng = Point(lng, lat)
+
+    if drop:
+        lat = float(drop['lat'])
+        lng = float(drop['lng'])
+        booking.drop_latlng = Point(lng, lat)
+
     booking.save()
 
     # Send push notifications to all partners with endpoint ARN

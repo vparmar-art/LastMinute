@@ -85,10 +85,14 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
             if (_formKey.currentState!.validate()) {
               // Set package details from description controller
               final prefs = await SharedPreferences.getInstance();
-              widget.bookingData.packageDetails = _descriptionController.text;
+              widget.bookingData.description = _descriptionController.text;
+              widget.bookingData.weight = _weightController.text;
+              widget.bookingData.dimensions = _dimensionsController.text;
+              widget.bookingData.instructions = _instructionsController.text;
+              widget.bookingData.distanceKm = widget.bookingData.distanceKm;
               widget.bookingData.customer = '1';
               print('📦 Booking data: ${jsonEncode(widget.bookingData.toJson())}');
-              final uri = Uri.parse('http://192.168.0.100:8000/api/bookings/start/');
+              final uri = Uri.parse('http://192.168.0.101:8000/api/bookings/start/');
 
               final response = await http.post(
                 uri,

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,22 @@ import 'verification/owner_details_screen.dart';
 import 'verification/driver_details_screen.dart';
 import 'verification/verification_screen.dart';
 import 'verification/verification_controller.dart';
+
+Future<bool> requestLocationPermissions() async {
+  var status = await Permission.location.status;
+  if (!status.isGranted) {
+    status = await Permission.location.request();
+    if (!status.isGranted) return false;
+  }
+
+  var bgStatus = await Permission.locationAlways.status;
+  if (!bgStatus.isGranted) {
+    bgStatus = await Permission.locationAlways.request();
+    if (!bgStatus.isGranted) return false;
+  }
+
+  return true;
+}
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -86,6 +103,13 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterL
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  bool locationGranted = await requestLocationPermissions();
+  if (!locationGranted) {
+    print('⚠️ Location permissions not granted.');
+    // Optionally handle permission denial here
+  } else {
+    print('✅ Location permissions granted.');
+  }
 
 const AndroidInitializationSettings initializationSettingsAndroid =
     AndroidInitializationSettings('@mipmap/ic_launcher');
