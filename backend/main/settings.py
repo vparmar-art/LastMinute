@@ -80,6 +80,13 @@ LOGGING = {
     },
 }
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'driver-loc-cache',
+    }
+}
+
 
 # Application definition
 

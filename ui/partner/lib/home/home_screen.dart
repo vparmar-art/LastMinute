@@ -100,6 +100,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void initState() {
+    FlutterBackgroundService().invoke("stopService");
+    print("🧹 Cleared existing background services");
     super.initState();
 
     _fetchPartnerDetails();

@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
 from users.models.partner import Partner, PartnerOTP
-from users.models.token import Token  # Now using the renamed Token model
+from users.models.token import Token  
 from twilio.rest import Client
 from django.conf import settings
 import random
@@ -12,7 +12,7 @@ import uuid
 from ..sns import register_device_with_sns
 from rest_framework.parsers import JSONParser
 from django.contrib.gis.geos import Point
-# APIView for updating partner's current location
+from django.core.cache import cache
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
@@ -155,14 +155,23 @@ class UpdatePartnerLocationView(APIView):
 
         latitude = request.data.get('latitude')
         longitude = request.data.get('longitude')
+        print(f'Received coordinates: latitude={latitude}, longitude={longitude}')
 
         if latitude is None or longitude is None:
             return Response({'error': 'Latitude and longitude are required'}, status=400)
 
-        try:
-            partner.current_location = Point(float(longitude), float(latitude))
-            partner.save()
-            print(f"Partner {partner.phone_number} location updated to ({latitude}, {longitude})")
-            return Response({'message': 'Location updated successfully'})
-        except Exception as e:
-            return Response({'error': str(e)}, status=500)
+        new_point = Point(float(longitude), float(latitude))
+
+        if partner.current_location:
+            old_point = partner.current_location
+            distance = new_point.distance(old_point)
+            print(f'Old location: {old_point}, New location: {new_point}, Distance: {distance}')
+            if distance < 0.0001:
+                print('Coordinates unchanged; no update needed')
+                return Response({'message': 'Coordinates unchanged; no update needed'})
+
+        partner.current_location = new_point
+        partner.save()
+        print('Location updated successfully')
+
+        return Response({'message': 'Location updated successfully'})
