@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'verification_screen.dart';
 
+const String baseUrl = 'http://192.168.0.101:8000/api';
+
 class VerificationData {
   // Step 1 - Vehicle Owner Info
   String? ownerFullName;
@@ -42,7 +44,7 @@ class VerificationData {
   // Method to load data from API
   Future<void> fetchVerificationData(String token) async {
     final response = await http.get(
-      Uri.parse('http://192.168.0.101:8000/api/users/partner/profile/'),
+      Uri.parse('$baseUrl/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 

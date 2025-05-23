@@ -16,6 +16,7 @@ class Partner(models.Model):
     driver_license = models.CharField(max_length=50, blank=True)
     driver_phone = models.CharField(max_length=20, blank=True)
     current_location = geomodels.PointField(null=True, blank=True)
+    is_live = models.BooleanField(default=False)
     device_endpoint_arn = models.CharField(max_length=512, blank=True, null=True)
 
     # Documents

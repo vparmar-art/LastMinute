@@ -79,8 +79,8 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
     final token = prefs.getString('auth_token');
     if (token == null) return;
 
-    final response = await http.post(
-      Uri.parse('http://192.168.0.101:8000/a/'),
+    final response = await http.put(
+      Uri.parse('http://192.168.0.101:8000/api/users/partner/profile/'),
       headers: {
         'Authorization': 'Token $token',
         'Content-Type': 'application/json',  // Ensure this header is set
@@ -90,6 +90,7 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
         'vehicle_type': _selectedVehicleType,
         'vehicle_number': _vehicleNumberController.text,
         'registration_number': _registrationNumberController.text,
+        'current_step': 2
       }),
     );
 

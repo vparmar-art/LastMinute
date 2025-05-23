@@ -274,7 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       print('Partner Profile Response: $data');
-      final isApproved = data['profile']['is_verified'] == true;
+      final isApproved = data['is_verified'] == true;
       if (!isApproved && mounted) {
         Navigator.pushReplacementNamed(context, '/verify');
       }

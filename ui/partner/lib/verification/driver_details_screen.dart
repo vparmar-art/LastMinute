@@ -56,11 +56,12 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
     if (token == null) return;
 
     final uri = Uri.parse('http://192.168.0.101:8000/api/users/partner/profile/');
-    final request = http.MultipartRequest('POST', uri)
+    final request = http.MultipartRequest('PUT', uri)
       ..headers['Authorization'] = 'Token $token'
       ..fields['driver_name'] = _driverNameController.text
       ..fields['driver_phone'] = _driverPhoneController.text
-      ..fields['driver_license'] = _driverLicenseController.text;
+      ..fields['driver_license'] = _driverLicenseController.text
+      ..fields['current_step'] = '3';
 
     if (_selfieImage != null) {
       request.files.add(await http.MultipartFile.fromPath('selfie', _selfieImage!.path));
