@@ -1,5 +1,6 @@
 import json
 from django.contrib.gis.geos import Point
+from django.contrib.gis.db.models.functions import Distance
 from rest_framework import status, serializers
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -150,8 +151,12 @@ def start_booking(request):
 
     booking.save()
 
-    # Send push notifications to all partners with endpoint ARN
-    partners = Partner.objects.exclude(device_endpoint_arn__isnull=True).exclude(device_endpoint_arn='')
+    # Send push notifications to partners within 10km of pickup location with endpoint ARN
+    partners = Partner.objects.exclude(device_endpoint_arn__isnull=True)\
+        .exclude(device_endpoint_arn='')\
+        .filter(is_live=True, current_location__isnull=False)\
+        .annotate(distance=Distance('current_location', booking.pickup_latlng))\
+        .filter(distance__lte=10000)  # 10,000 meters = 10 km
     for partner in partners:
         print(f"device_endpoint_arn {partner.device_endpoint_arn}")
         payload = {

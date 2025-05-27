@@ -64,36 +64,36 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   print('Background message final title: $title, body: $body');
 
-await flutterLocalNotificationsPlugin.show(
-  message.hashCode,
-  title ?? 'New Notification',
-  body ?? 'You received a new message',
-  const NotificationDetails(
-    android: AndroidNotificationDetails(
-      'high_priority_channel',
-      'High Priority Notifications',
-      channelDescription: 'Notifications shown over other apps',
-      importance: Importance.max,
-      priority: Priority.high,
-      playSound: true,
-      // fullScreenIntent: true,
-      ticker: 'ticker',
-      actions: <AndroidNotificationAction>[
-        AndroidNotificationAction(
-          'accept_action', // Action ID
-          'Accept',
-          showsUserInterface: true,
-        ),
-        AndroidNotificationAction(
-          'reject_action', // Action ID
-          'Reject',
-          showsUserInterface: true,
-        ),
-      ],
+  await flutterLocalNotificationsPlugin.show(
+    message.hashCode,
+    title ?? 'New Notification',
+    body ?? 'You received a new message',
+    const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'high_priority_channel',
+        'High Priority Notifications',
+        channelDescription: 'Notifications shown over other apps',
+        importance: Importance.max,
+        priority: Priority.high,
+        playSound: true,
+        // fullScreenIntent: true,
+        ticker: 'ticker',
+        actions: <AndroidNotificationAction>[
+          AndroidNotificationAction(
+            'accept_action', // Action ID
+            'Accept',
+            showsUserInterface: true,
+          ),
+          AndroidNotificationAction(
+            'reject_action', // Action ID
+            'Reject',
+            showsUserInterface: true,
+          ),
+        ],
+      ),
     ),
-  ),
-  payload: 'booking_id=123',
-);
+    payload: 'booking_id=123',
+  );
 
   print('🔔 Handling a background message: ${message.messageId}, title: $title, body: $body');
 }
@@ -146,6 +146,48 @@ const AndroidInitializationSettings initializationSettingsAndroid =
   print('FCM Token: $fcmToken');
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+    final rawPayload = message.data['default'];
+    print('📥 Foreground message received: $rawPayload');
+
+    String? title = message.notification?.title;
+    String? body = message.notification?.body;
+
+    if (title == null || body == null) {
+      try {
+        final defaultData = jsonDecode(rawPayload);
+        final gcmString = defaultData['GCM'];
+        final gcmData = jsonDecode(gcmString);
+        final notification = gcmData['notification'];
+        title = notification?['title'] ?? title;
+        body = notification?['body'] ?? body;
+      } catch (e) {
+        print('❌ Failed to parse notification: $e');
+      }
+    }
+
+    await flutterLocalNotificationsPlugin.show(
+      message.hashCode,
+      title ?? 'New Notification',
+      body ?? 'You received a new message',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'high_priority_channel',
+          'High Priority Notifications',
+          channelDescription: 'Notifications shown over other apps',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          actions: <AndroidNotificationAction>[
+            AndroidNotificationAction('accept_action', 'Accept', showsUserInterface: true),
+            AndroidNotificationAction('reject_action', 'Reject', showsUserInterface: true),
+          ],
+        ),
+      ),
+      payload: 'booking_id=123',
+    );
+  });
 
   runApp(const MyApp());
 }
