@@ -93,10 +93,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _isLive = false;
+  String _partnerName = '';
   double _dragPosition = 0.0;
   double _maxDrag = 0.0;
   int _totalBookings = 0;
   double _totalEarnings = 0.0;
+  bool _isLoadingProfile = true;
+  bool _isSliderInitialized = false;
 
   @override
   void initState() {
@@ -135,60 +138,62 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Welcome, Driver!',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    const Text('Total Earnings Today', style: TextStyle(fontSize: 16)),
-                    const SizedBox(height: 8),
-                    Text('₹${_totalEarnings.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  ],
-                ),
+      body: _isLoadingProfile
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Welcome, $_partnerName!',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          const Text('Total Earnings Today', style: TextStyle(fontSize: 16)),
+                          const SizedBox(height: 8),
+                          Text('₹${_totalEarnings.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: const [
+                          Text('Live Hours', style: TextStyle(fontSize: 16)),
+                          SizedBox(height: 8),
+                          Text('0h 0m', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Text('Total Bookings', style: TextStyle(fontSize: 16)),
+                          SizedBox(height: 8),
+                          Text('$_totalBookings', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildLiveToggle(),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: const [
-                    Text('Live Hours', style: TextStyle(fontSize: 16)),
-                    SizedBox(height: 8),
-                    Text('0h 0m', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Card(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    Text('Total Bookings', style: TextStyle(fontSize: 16)),
-                    SizedBox(height: 8),
-                    Text('$_totalBookings', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildLiveToggle(),
-          ],
-        ),
-      ),
     );
   }
 
@@ -196,6 +201,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         _maxDrag = constraints.maxWidth - 40;
+
+        if (!_isSliderInitialized && _maxDrag > 0) {
+          _dragPosition = _isLive ? _maxDrag : 0.0;
+          _isSliderInitialized = true;
+        }
 
         return GestureDetector(
           onHorizontalDragUpdate: (details) {
@@ -206,17 +216,21 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           onHorizontalDragEnd: (details) async {
             await HapticFeedback.mediumImpact();
+
+            bool goingLive = _dragPosition > _maxDrag / 2;
+
             setState(() {
-              if (_dragPosition > _maxDrag / 2) {
-                _isLive = true;
-                _dragPosition = _maxDrag;
-                _startBackgroundLocationUpdates();
-              } else {
-                _isLive = false;
-                _dragPosition = 0;
-                _stopBackgroundLocationUpdates();
-              }
+              _isLive = goingLive;
+              _dragPosition = goingLive ? _maxDrag : 0.0;
             });
+
+            if (goingLive) {
+              _startBackgroundLocationUpdates();
+              await _updateLiveStatus(true);
+            } else {
+              _stopBackgroundLocationUpdates();
+              await _updateLiveStatus(false);
+            }
           },
           child: Container(
             height: 60,
@@ -261,6 +275,27 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _updateLiveStatus(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) return;
+
+    final response = await http.put(
+      Uri.parse('http://192.168.0.104:8000/api/users/partner/profile/'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'is_live': value}),
+    );
+
+    if (response.statusCode == 200) {
+      print('✅ Live status updated to $value');
+    } else {
+      print('❌ Failed to update live status: ${response.statusCode}');
+    }
+  }
+
   Future<void> _fetchPartnerDetails() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
@@ -277,7 +312,17 @@ class _HomeScreenState extends State<HomeScreen> {
       final isApproved = data['is_verified'] == true;
       if (!isApproved && mounted) {
         Navigator.pushReplacementNamed(context, '/verify');
+      } else {
+        setState(() {
+          _isLive = data['is_live'] ?? false;
+          _partnerName = data['driver_name'] ?? '';
+          _isLoadingProfile = false;
+        });
       }
+    } else {
+      setState(() {
+        _isLoadingProfile = false;
+      });
     }
   }
 

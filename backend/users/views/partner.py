@@ -164,7 +164,7 @@ class PartnerProfileView(APIView):
         # Update partner fields safely, only if keys exist
         for field in ['owner_full_name', 'vehicle_type', 'vehicle_number', 'registration_number',
                       'driver_name', 'driver_phone', 'driver_license', 'is_agreed_to_terms',
-                      'current_step', 'is_rejected', 'rejection_reason']:
+                      'current_step', 'is_rejected', 'rejection_reason', 'is_live']:
             if field in data:
                 setattr(partner, field, data[field])
 
