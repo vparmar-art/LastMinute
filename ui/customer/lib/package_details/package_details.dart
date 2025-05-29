@@ -101,8 +101,15 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
               );
 
               if (response.statusCode == 201) {
+                final responseData = jsonDecode(response.body);
+                final bookingId = responseData['id'];
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Package booked!')),
+                );
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/booking',
+                  arguments: {'id': bookingId},
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(

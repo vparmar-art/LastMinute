@@ -149,7 +149,10 @@ def start_booking(request):
         lng = float(drop['lng'])
         booking.drop_latlng = Point(lng, lat)
 
-    booking.save()
+    # Defensive check to ensure booking.id is set before notification
+    if not booking.id:
+        booking.save()
+    print(f"✅ Booking saved with ID: {booking.id}")
 
     # Send push notifications to partners within 10km of pickup location with endpoint ARN
     partners = Partner.objects.exclude(device_endpoint_arn__isnull=True)\
@@ -171,6 +174,7 @@ def start_booking(request):
                 }
             })
         }
+        print(f"📦 SNS Payload for {partner.device_endpoint_arn}: {json.dumps(payload)}")
         try:
             send_push_notification(
                 partner.device_endpoint_arn,

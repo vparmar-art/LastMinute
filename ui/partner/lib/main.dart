@@ -35,6 +35,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void onDidReceiveNotificationResponse(NotificationResponse response) {
   print('🔔 Notification tapped: ${response.payload}, Action ID: ${response.actionId}');
   final bookingId = int.tryParse(response.payload?.split('=').last ?? '');
+  print('📦 Extracted booking ID from payload: $bookingId');
   if (bookingId != null) {
     navigatorKey.currentState?.pushNamed('/booking-detail', arguments: {'id': bookingId});
   }
@@ -44,19 +45,19 @@ void onDidReceiveNotificationResponse(NotificationResponse response) {
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 
-  final rawPayload = message.data['default'];
-  print('Message received: $rawPayload');
+  print('📨 Full background message: ${jsonEncode(message.data)}');
+  final bookingId = message.data['booking_id'];
+  print('📨 Received booking_id from SNS: $bookingId');
 
   String? title = message.notification?.title;
   String? body = message.notification?.body;
 
-  Map<String, dynamic>? gcmData;
-
   if (title == null || body == null) {
     try {
+      final rawPayload = message.data['default'];
       final defaultData = jsonDecode(rawPayload);
       final gcmString = defaultData['GCM'];
-      gcmData = jsonDecode(gcmString);
+      final gcmData = jsonDecode(gcmString);
       final notification = gcmData?['notification'];
       title = notification?['title'] ?? title;
       body = notification?['body'] ?? body;
@@ -89,7 +90,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         ],
       ),
     ),
-    payload: 'booking_id=${gcmData?['data']?['booking_id'] ?? ''}',
+    payload: 'booking_id=${bookingId ?? ''}',
   );
 
   print('🔔 Handling a background message: ${message.messageId}, title: $title, body: $body');
@@ -145,6 +146,7 @@ const AndroidInitializationSettings initializationSettingsAndroid =
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+    print('📨 Full foreground message: ${jsonEncode(message.data)}');
     final rawPayload = message.data['default'];
     print('📥 Foreground message received: $rawPayload');
 

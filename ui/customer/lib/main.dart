@@ -4,6 +4,7 @@ import 'login/login_screen.dart';
 import 'home/home_screen.dart';
 import 'package_details/package_details.dart'; 
 import 'package:firebase_core/firebase_core.dart';
+import 'booking/booking_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -58,6 +59,7 @@ class MyApp extends StatelessWidget {
           final bookingData = ModalRoute.of(context)!.settings.arguments as BookingData;
           return PackageDetailsScreen(bookingData: bookingData);
         },
+        '/booking': (context) => const BookingScreen(),
       },
     );
   }
