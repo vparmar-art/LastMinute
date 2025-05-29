@@ -167,7 +167,7 @@ def start_booking(request):
                     "body": f"Customer Name {booking.customer}"
                 },
                 "data": {
-                    "key": "value"
+                    "booking_id": booking.id
                 }
             })
         }

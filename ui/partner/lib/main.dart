@@ -11,6 +11,7 @@ import 'verification/owner_details_screen.dart';
 import 'verification/driver_details_screen.dart';
 import 'verification/verification_screen.dart';
 import 'verification/verification_controller.dart';
+import 'booking/booking_detail_screen.dart';
 
 Future<bool> requestLocationPermissions() async {
   var status = await Permission.location.status;
@@ -153,6 +154,7 @@ const AndroidInitializationSettings initializationSettingsAndroid =
 
     String? title = message.notification?.title;
     String? body = message.notification?.body;
+    int? bookingId;
 
     if (title == null || body == null) {
       try {
@@ -162,9 +164,15 @@ const AndroidInitializationSettings initializationSettingsAndroid =
         final notification = gcmData['notification'];
         title = notification?['title'] ?? title;
         body = notification?['body'] ?? body;
+
+        if (gcmData['data'] != null && gcmData['data']['booking_id'] != null) {
+          bookingId = int.tryParse(gcmData['data']['booking_id'].toString());
+        }
       } catch (e) {
         print('❌ Failed to parse notification: $e');
       }
+    } else if (message.data['booking_id'] != null) {
+      bookingId = int.tryParse(message.data['booking_id'].toString());
     }
 
     await flutterLocalNotificationsPlugin.show(
@@ -185,8 +193,12 @@ const AndroidInitializationSettings initializationSettingsAndroid =
           ],
         ),
       ),
-      payload: 'booking_id=123',
+      payload: 'booking_id=${bookingId ?? ''}',
     );
+
+    if (bookingId != null) {
+      navigatorKey.currentState?.pushNamed('/booking-detail', arguments: {'id': bookingId});
+    }
   });
 
   runApp(const MyApp());
@@ -257,6 +269,7 @@ class MyApp extends StatelessWidget {
             );
           },
         ),
+        '/booking-detail': (context) => const BookingDetailScreen(),
       },
     );
   }

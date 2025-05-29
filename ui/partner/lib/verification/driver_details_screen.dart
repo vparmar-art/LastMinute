@@ -33,7 +33,7 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.0.101:8000/api/users/partner/profile/'),
+      Uri.parse('http://192.168.0.104:8000/api/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
@@ -55,7 +55,7 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
     final token = prefs.getString('auth_token');
     if (token == null) return;
 
-    final uri = Uri.parse('http://192.168.0.101:8000/api/users/partner/profile/');
+    final uri = Uri.parse('http://192.168.0.104:8000/api/users/partner/profile/');
     final request = http.MultipartRequest('PUT', uri)
       ..headers['Authorization'] = 'Token $token'
       ..fields['driver_name'] = _driverNameController.text
