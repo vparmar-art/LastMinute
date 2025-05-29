@@ -34,10 +34,9 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void onDidReceiveNotificationResponse(NotificationResponse response) {
   print('🔔 Notification tapped: ${response.payload}, Action ID: ${response.actionId}');
-  if (response.actionId == 'ACCEPT') {
-    print('✅ Booking accepted.');
-  } else if (response.actionId == 'REJECT') {
-    print('❌ Booking rejected.');
+  final bookingId = int.tryParse(response.payload?.split('=').last ?? '');
+  if (bookingId != null) {
+    navigatorKey.currentState?.pushNamed('/booking-detail', arguments: {'id': bookingId});
   }
 }
 
@@ -51,12 +50,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   String? title = message.notification?.title;
   String? body = message.notification?.body;
 
+  Map<String, dynamic>? gcmData;
+
   if (title == null || body == null) {
     try {
       final defaultData = jsonDecode(rawPayload);
       final gcmString = defaultData['GCM'];
-      final gcmData = jsonDecode(gcmString);
-      final notification = gcmData['notification'];
+      gcmData = jsonDecode(gcmString);
+      final notification = gcmData?['notification'];
       title = notification?['title'] ?? title;
       body = notification?['body'] ?? body;
     } catch (e) {
@@ -78,23 +79,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         importance: Importance.max,
         priority: Priority.high,
         playSound: true,
-        // fullScreenIntent: true,
         ticker: 'ticker',
         actions: <AndroidNotificationAction>[
           AndroidNotificationAction(
-            'accept_action', // Action ID
-            'Accept',
-            showsUserInterface: true,
-          ),
-          AndroidNotificationAction(
-            'reject_action', // Action ID
-            'Reject',
+            'view_booking',
+            'View',
             showsUserInterface: true,
           ),
         ],
       ),
     ),
-    payload: 'booking_id=123',
+    payload: 'booking_id=${gcmData?['data']?['booking_id'] ?? ''}',
   );
 
   print('🔔 Handling a background message: ${message.messageId}, title: $title, body: $body');
@@ -188,10 +183,6 @@ const AndroidInitializationSettings initializationSettingsAndroid =
           importance: Importance.max,
           priority: Priority.high,
           playSound: true,
-          actions: <AndroidNotificationAction>[
-            AndroidNotificationAction('accept_action', 'Accept', showsUserInterface: true),
-            AndroidNotificationAction('reject_action', 'Reject', showsUserInterface: true),
-          ],
         ),
       ),
       payload: 'booking_id=${bookingId ?? ''}',
