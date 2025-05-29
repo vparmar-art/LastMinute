@@ -71,54 +71,89 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     }
   }
 
+  Future<void> updateBookingStatus(int bookingId, String status) async {
+    final url = Uri.parse('http://192.168.0.104:8000/api/bookings/$bookingId/status/');
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Token YOUR_TOKEN_HERE',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'status': status}),
+      );
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        print('Booking status updated to $status');
+        await fetchBookingDetails(bookingId);
+
+        if (status == 'arriving' && mounted) {
+          Navigator.pushReplacementNamed(context, '/booking', arguments: {'id': bookingId});
+        }
+      } else {
+        print('Failed to update booking status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error updating booking status: $e');
+    }
+  }
+
   Widget _buildBookingDecisionSlider() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        _decisionMaxDrag = constraints.maxWidth - 40;
+        _decisionMaxDrag = constraints.maxWidth;
 
         return GestureDetector(
           onHorizontalDragUpdate: (details) {
             setState(() {
               _decisionDrag += details.primaryDelta ?? 0;
-              _decisionDrag = _decisionDrag.clamp(0.0, _decisionMaxDrag);
+              _decisionDrag = _decisionDrag.clamp(-_decisionMaxDrag / 2, _decisionMaxDrag / 2);
             });
           },
           onHorizontalDragEnd: (details) async {
             await HapticFeedback.mediumImpact();
+            final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+            final bookingId = args['id'] as int;
+            if (_decisionDrag > _decisionMaxDrag / 4) {
+              await updateBookingStatus(bookingId, 'arriving');
+            } else if (_decisionDrag < -_decisionMaxDrag / 4) {
+              print('❌ Booking Rejected');
+              // You can add reject API call here
+            }
+
             setState(() {
-              if (_decisionDrag > _decisionMaxDrag / 2) {
-                _isLive = true;
-                print('✅ Booking Accepted');
-                // Call accept API here
-              } else {
-                _isLive = false;
-                print('❌ Booking Rejected');
-                // Call reject API here
-              }
-              _decisionDrag = 0.0; // Reset the slider
+              _decisionDrag = 0.0;
             });
           },
           child: Container(
             height: 60,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: _isLive ? Colors.green : Colors.red,
+              gradient: const LinearGradient(
+                colors: [Colors.green, Colors.red],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
             ),
             child: Stack(
               alignment: Alignment.center,
               children: [
                 Opacity(
-                  opacity: (_isLive ? _decisionDrag : (_decisionMaxDrag - _decisionDrag)) / _decisionMaxDrag,
-                  child: Center(
-                    child: Text(
-                      _isLive ? 'Swipe to Reject' : 'Swipe to Accept',
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                    ),
+                  opacity: 1.0 - (_decisionDrag.abs() / (_decisionMaxDrag / 2)).clamp(0.0, 1.0),
+                  child: const Text(
+                    'Accept / Reject',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
                 Positioned(
-                  left: _decisionDrag,
+                  left: 10 + (_decisionDrag > 0 ? _decisionDrag : 0),
                   child: _buildArrowButton(),
+                ),
+                Positioned(
+                  right: 10 + (_decisionDrag < 0 ? -_decisionDrag : 0),
+                  child: Transform.rotate(
+                    angle: 3.14,
+                    child: _buildArrowButton(),
+                  ),
                 ),
               ],
             ),
@@ -132,89 +167,133 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Booking Details'),
+        title: const Text(
+          'Booking Details',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.indigo,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : hasError
-              ? const Center(child: Text('Failed to load booking details.'))
-              : Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: ListView(
-                    children: [
-                      Card(
-                        child: ListTile(
-                          title: const Text('Pickup Location'),
-                          subtitle: Text(booking?['pickup_location'] ?? ''),
-                        ),
-                      ),
-                      Card(
-                        child: ListTile(
-                          title: const Text('Drop Location'),
-                          subtitle: Text(booking?['drop_location'] ?? ''),
-                        ),
-                      ),
-                      Card(
-                        child: ListTile(
-                          title: const Text('Status'),
-                          subtitle: Text(booking?['status'] ?? ''),
-                        ),
-                      ),
-                      if (booking?['pickup_time'] != null)
+      body: Container(
+        color: Colors.grey[100],
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : hasError
+                ? const Center(child: Text('Failed to load booking details.'))
+                : Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: ListView(
+                      children: [
                         Card(
+                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           child: ListTile(
-                            title: const Text('Pickup Time'),
-                            subtitle: Text(booking?['pickup_time']),
+                            title: const Text('Pickup Location'),
+                            subtitle: Text(booking?['pickup_location'] ?? ''),
                           ),
                         ),
-                      if (booking?['drop_time'] != null)
                         Card(
+                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           child: ListTile(
-                            title: const Text('Drop Time'),
-                            subtitle: Text(booking?['drop_time']),
+                            title: const Text('Drop Location'),
+                            subtitle: Text(booking?['drop_location'] ?? ''),
                           ),
                         ),
-                      if (booking?['weight'] != null)
+                        // Amount card inserted after Drop Location
                         Card(
+                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           child: ListTile(
-                            title: const Text('Weight'),
-                            subtitle: Text('${booking?['weight']} kg'),
+                            title: const Text('Amount'),
+                            subtitle: Text('₹${booking?['amount'] ?? '0'}'),
                           ),
                         ),
-                      if (booking?['dimensions'] != null)
+                        if (booking?['pickup_time'] != null)
+                          Card(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            child: ListTile(
+                              title: const Text('Pickup Time'),
+                              subtitle: Text(booking?['pickup_time']),
+                            ),
+                          ),
+                        if (booking?['drop_time'] != null)
+                          Card(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            child: ListTile(
+                              title: const Text('Drop Time'),
+                              subtitle: Text(booking?['drop_time']),
+                            ),
+                          ),
+                        if (booking?['weight'] != null)
+                          Card(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            child: ListTile(
+                              title: const Text('Weight'),
+                              subtitle: Text('${booking?['weight']} kg'),
+                            ),
+                          ),
+                        if (booking?['dimensions'] != null)
+                          Card(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            child: ListTile(
+                              title: const Text('Dimensions'),
+                              subtitle: Text(booking?['dimensions']),
+                            ),
+                          ),
+                        if (booking?['instructions'] != null)
+                          Card(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            child: ListTile(
+                              title: const Text('Instructions'),
+                              subtitle: Text(booking?['instructions']),
+                            ),
+                          ),
+                        if (booking?['distance_km'] != null)
+                          Card(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            child: ListTile(
+                              title: const Text('Distance'),
+                              subtitle: Text('${booking?['distance_km']} km'),
+                            ),
+                          ),
                         Card(
-                          child: ListTile(
-                            title: const Text('Dimensions'),
-                            subtitle: Text(booking?['dimensions']),
+                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: _buildBookingDecisionSlider(),
                           ),
                         ),
-                      if (booking?['instructions'] != null)
-                        Card(
-                          child: ListTile(
-                            title: const Text('Instructions'),
-                            subtitle: Text(booking?['instructions']),
-                          ),
+                        const SizedBox(height: 20),
+                        /*
+                        ElevatedButton(
+                          onPressed: () {
+                            // Future implementation: update status, etc.
+                          },
+                          child: const Text('Update Booking'),
                         ),
-                      if (booking?['distance_km'] != null)
-                        Card(
-                          child: ListTile(
-                            title: const Text('Distance'),
-                            subtitle: Text('${booking?['distance_km']} km'),
-                          ),
-                        ),
-                      _buildBookingDecisionSlider(),
-                      const SizedBox(height: 20),
-                      /*
-                      ElevatedButton(
-                        onPressed: () {
-                          // Future implementation: update status, etc.
-                        },
-                        child: const Text('Update Booking'),
-                      ),
-                      */
-                    ],
+                        */
+                      ],
+                    ),
                   ),
-                ),
+      ),
     );
   }
 }

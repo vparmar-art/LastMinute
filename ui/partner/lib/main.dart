@@ -12,6 +12,7 @@ import 'verification/driver_details_screen.dart';
 import 'verification/verification_screen.dart';
 import 'verification/verification_controller.dart';
 import 'booking/booking_detail_screen.dart';
+import 'booking/booking_screen.dart';
 
 Future<bool> requestLocationPermissions() async {
   var status = await Permission.location.status;
@@ -269,6 +270,7 @@ class MyApp extends StatelessWidget {
             );
           },
         ),
+        '/booking': (context) => const BookingScreen(),
         '/booking-detail': (context) => const BookingDetailScreen(),
       },
     );
