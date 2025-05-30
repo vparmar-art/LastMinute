@@ -18,7 +18,7 @@ class BookingScreen extends StatelessWidget {
       ),
       body: const Center(
         child: Text(
-          'Driver has accepted the booking. Further instructions will appear here.',
+          'Booking Accepted.',
           style: TextStyle(fontSize: 16),
           textAlign: TextAlign.center,
         ),

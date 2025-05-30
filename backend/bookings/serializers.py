@@ -8,6 +8,7 @@ class BookingSerializer(GeoFeatureModelSerializer):
         fields = [
             'id',
             'customer',
+            'partner',
             'pickup_address',
             'pickup_latlng',
             'drop_address',

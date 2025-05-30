@@ -14,6 +14,8 @@ class _BookingScreenState extends State<BookingScreen> {
   Timer? _pollingTimer;
   bool _isArriving = false;
   int? bookingId;
+  bool _isLoading = true;
+  String _partnerName = '';
 
   @override
   void initState() {
@@ -48,9 +50,14 @@ class _BookingScreenState extends State<BookingScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['status'] == 'arriving') {
-          setState(() {
-            _isArriving = true;
-          });
+          final partnerId = data['partner'];
+          await _fetchPartnerProfile(partnerId); // fetch partner details
+          if (mounted) {
+            setState(() {
+              _isArriving = true;
+              _isLoading = false;
+            });
+          }
           _pollingTimer?.cancel();
         }
       } else {
@@ -58,6 +65,23 @@ class _BookingScreenState extends State<BookingScreen> {
       }
     } catch (e) {
       print('Error: $e');
+    }
+  }
+
+  Future<void> _fetchPartnerProfile(int partnerId) async {
+    final url = Uri.parse('http://192.168.0.104:8000/api/users/partner/profile/?id=$partnerId');
+    try {
+      final response = await http.get(url, headers: {
+        'Content-Type': 'application/json',
+      });
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        _partnerName = data['driver_name'] ?? '';
+      } else {
+        print('Error fetching partner profile: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching partner profile: $e');
     }
   }
 
@@ -79,13 +103,14 @@ class _BookingScreenState extends State<BookingScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Center(
-        child: _isArriving
-            ? Column(
+        child: _isLoading
+            ? const CircularProgressIndicator()
+            : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    'Driver has accepted the booking.',
-                    style: TextStyle(fontSize: 18),
+                  Text(
+                    'Driver $_partnerName has accepted the booking.',
+                    style: const TextStyle(fontSize: 18),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 20),
@@ -94,8 +119,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ],
-              )
-            : const CircularProgressIndicator(),
+              ),
       ),
     );
   }

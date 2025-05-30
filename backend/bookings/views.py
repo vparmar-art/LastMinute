@@ -8,6 +8,7 @@ from .models import Booking
 from users.models import Customer, Partner
 from .serializers import BookingSerializer
 from .sns import send_push_notification
+from users.models.token import Token
 
 # Serializer for Booking
 class BookingSerializer(serializers.ModelSerializer):
@@ -96,18 +97,43 @@ def booking_detail(request, pk):
 def update_booking_status(request, pk):
     """
     Update the status of a booking (e.g., in_transit, arriving, completed).
+    Requires Authorization token for identifying the partner.
     """
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Token '):
+        return Response({'error': 'Authorization token required'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    token_key = auth_header.split(' ')[1]
+    try:
+        token = Token.objects.get(key=token_key)
+    except Token.DoesNotExist:
+        return Response({'error': 'Invalid token'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        partner = token.partner
+    except AttributeError:
+        partner = None
+
+    try:
+        customer = token.customer
+    except AttributeError:
+        customer = None
+
     try:
         booking = Booking.objects.get(pk=pk)
     except Booking.DoesNotExist:
         return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    if partner:
+        booking.partner = partner
+    if customer:
+        booking.customer = customer
+
     if 'status' in request.data:
         booking.status = request.data['status']
-        booking.save()
-        return Response(BookingSerializer(booking).data, status=status.HTTP_200_OK)
-    else:
-        return Response({'error': 'Status field is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    booking.save()
+    return Response(BookingSerializer(booking).data, status=status.HTTP_200_OK)
 
 
 # View to start a booking and send push notifications to all partners

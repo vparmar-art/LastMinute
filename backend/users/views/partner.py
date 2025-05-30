@@ -115,15 +115,23 @@ class PartnerProfileView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request):
-        token_key = request.headers.get('Authorization', '').replace('Token ', '')
-        if not token_key:
-            return Response({'error': 'Authorization token missing'}, status=401)
+        partner_id = request.query_params.get('id')
 
-        try:
-            token = Token.objects.get(key=token_key)
-            partner = token.partner
-        except Token.DoesNotExist:
-            return Response({'error': 'Invalid token'}, status=401)
+        if partner_id:
+            try:
+                partner = Partner.objects.get(id=partner_id)
+            except Partner.DoesNotExist:
+                return Response({'error': 'Partner not found'}, status=404)
+        else:
+            token_key = request.headers.get('Authorization', '').replace('Token ', '')
+            if not token_key:
+                return Response({'error': 'Authorization token missing'}, status=401)
+
+            try:
+                token = Token.objects.get(key=token_key)
+                partner = token.partner
+            except Token.DoesNotExist:
+                return Response({'error': 'Invalid token'}, status=401)
 
         profile_data = {
             'phone_number': partner.phone_number,
@@ -177,7 +185,7 @@ class PartnerProfileView(APIView):
 
         return Response({'message': 'Profile updated successfully'})
 
-class UpdatePartnerLocationView(APIView):
+class PartnerLocationView(APIView):
     parser_classes = [JSONParser]
 
     def post(self, request):
@@ -217,3 +225,21 @@ class UpdatePartnerLocationView(APIView):
         print('Location updated successfully')
 
         return Response({'message': 'Location updated successfully'})
+
+    def get(self, request):
+        partner_id = request.query_params.get('partner_id')
+        if not partner_id:
+            return Response({'error': 'partner_id is required'}, status=400)
+
+        try:
+            partner = Partner.objects.get(id=partner_id)
+        except Partner.DoesNotExist:
+            return Response({'error': 'Partner not found'}, status=404)
+
+        if not partner.current_location:
+            return Response({'error': 'Location not available'}, status=404)
+
+        return Response({
+            'latitude': partner.current_location.y,
+            'longitude': partner.current_location.x
+        })

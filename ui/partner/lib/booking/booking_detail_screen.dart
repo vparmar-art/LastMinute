@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BookingDetailScreen extends StatefulWidget {
   const BookingDetailScreen({super.key});
@@ -14,6 +15,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   Map<String, dynamic>? booking;
   bool isLoading = true;
   bool hasError = false;
+  bool isUpdating = false;
 
   double _decisionDrag = 0.0;
   late double _decisionMaxDrag;
@@ -44,8 +46,10 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     final url = Uri.parse('http://192.168.0.104:8000/api/bookings/$id/');
     print('Fetching booking details for ID: $id from $url');
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
       final response = await http.get(url, headers: {
-        'Authorization': 'Token YOUR_TOKEN_HERE',
+        'Authorization': 'Token $token',
         'Content-Type': 'application/json',
       });
       print('Response status: ${response.statusCode}');
@@ -72,12 +76,18 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   }
 
   Future<void> updateBookingStatus(int bookingId, String status) async {
-    final url = Uri.parse('http://192.168.0.104:8000/api/bookings/$bookingId/status/');
+    setState(() {
+      isUpdating = true;
+    });
+
     try {
+      final url = Uri.parse('http://192.168.0.104:8000/api/bookings/$bookingId/status/');
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
       final response = await http.post(
         url,
         headers: {
-          'Authorization': 'Token YOUR_TOKEN_HERE',
+          'Authorization': 'Token $token',
           'Content-Type': 'application/json',
         },
         body: json.encode({'status': status}),
@@ -94,6 +104,12 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       }
     } catch (e) {
       print('Error updating booking status: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isUpdating = false;
+        });
+      }
     }
   }
 
@@ -174,125 +190,136 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         backgroundColor: Colors.indigo,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Container(
-        color: Colors.grey[100],
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : hasError
-                ? const Center(child: Text('Failed to load booking details.'))
-                : Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: ListView(
-                      children: [
-                        Card(
-                          margin: const EdgeInsets.symmetric(vertical: 8),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          child: ListTile(
-                            title: const Text('Pickup Location'),
-                            subtitle: Text(booking?['pickup_location'] ?? ''),
-                          ),
+      body: Stack(
+        children: [
+          Container(
+            color: Colors.grey[100],
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : hasError
+                    ? const Center(child: Text('Failed to load booking details.'))
+                    : Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: ListView(
+                          children: [
+                            Card(
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              child: ListTile(
+                                title: const Text('Pickup Location'),
+                                subtitle: Text(booking?['pickup_location'] ?? ''),
+                              ),
+                            ),
+                            Card(
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              child: ListTile(
+                                title: const Text('Drop Location'),
+                                subtitle: Text(booking?['drop_location'] ?? ''),
+                              ),
+                            ),
+                            // Amount card inserted after Drop Location
+                            Card(
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              child: ListTile(
+                                title: const Text('Amount'),
+                                subtitle: Text('₹${booking?['amount'] ?? '0'}'),
+                              ),
+                            ),
+                            if (booking?['pickup_time'] != null)
+                              Card(
+                                margin: const EdgeInsets.symmetric(vertical: 8),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                child: ListTile(
+                                  title: const Text('Pickup Time'),
+                                  subtitle: Text(booking?['pickup_time']),
+                                ),
+                              ),
+                            if (booking?['drop_time'] != null)
+                              Card(
+                                margin: const EdgeInsets.symmetric(vertical: 8),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                child: ListTile(
+                                  title: const Text('Drop Time'),
+                                  subtitle: Text(booking?['drop_time']),
+                                ),
+                              ),
+                            if (booking?['weight'] != null)
+                              Card(
+                                margin: const EdgeInsets.symmetric(vertical: 8),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                child: ListTile(
+                                  title: const Text('Weight'),
+                                  subtitle: Text('${booking?['weight']} kg'),
+                                ),
+                              ),
+                            if (booking?['dimensions'] != null)
+                              Card(
+                                margin: const EdgeInsets.symmetric(vertical: 8),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                child: ListTile(
+                                  title: const Text('Dimensions'),
+                                  subtitle: Text(booking?['dimensions']),
+                                ),
+                              ),
+                            if (booking?['instructions'] != null)
+                              Card(
+                                margin: const EdgeInsets.symmetric(vertical: 8),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                child: ListTile(
+                                  title: const Text('Instructions'),
+                                  subtitle: Text(booking?['instructions']),
+                                ),
+                              ),
+                            if (booking?['distance_km'] != null)
+                              Card(
+                                margin: const EdgeInsets.symmetric(vertical: 8),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                child: ListTile(
+                                  title: const Text('Distance'),
+                                  subtitle: Text('${booking?['distance_km']} km'),
+                                ),
+                              ),
+                            Card(
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: _buildBookingDecisionSlider(),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            /*
+                            ElevatedButton(
+                              onPressed: () {
+                                // Future implementation: update status, etc.
+                              },
+                              child: const Text('Update Booking'),
+                            ),
+                            */
+                          ],
                         ),
-                        Card(
-                          margin: const EdgeInsets.symmetric(vertical: 8),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          child: ListTile(
-                            title: const Text('Drop Location'),
-                            subtitle: Text(booking?['drop_location'] ?? ''),
-                          ),
-                        ),
-                        // Amount card inserted after Drop Location
-                        Card(
-                          margin: const EdgeInsets.symmetric(vertical: 8),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          child: ListTile(
-                            title: const Text('Amount'),
-                            subtitle: Text('₹${booking?['amount'] ?? '0'}'),
-                          ),
-                        ),
-                        if (booking?['pickup_time'] != null)
-                          Card(
-                            margin: const EdgeInsets.symmetric(vertical: 8),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            child: ListTile(
-                              title: const Text('Pickup Time'),
-                              subtitle: Text(booking?['pickup_time']),
-                            ),
-                          ),
-                        if (booking?['drop_time'] != null)
-                          Card(
-                            margin: const EdgeInsets.symmetric(vertical: 8),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            child: ListTile(
-                              title: const Text('Drop Time'),
-                              subtitle: Text(booking?['drop_time']),
-                            ),
-                          ),
-                        if (booking?['weight'] != null)
-                          Card(
-                            margin: const EdgeInsets.symmetric(vertical: 8),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            child: ListTile(
-                              title: const Text('Weight'),
-                              subtitle: Text('${booking?['weight']} kg'),
-                            ),
-                          ),
-                        if (booking?['dimensions'] != null)
-                          Card(
-                            margin: const EdgeInsets.symmetric(vertical: 8),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            child: ListTile(
-                              title: const Text('Dimensions'),
-                              subtitle: Text(booking?['dimensions']),
-                            ),
-                          ),
-                        if (booking?['instructions'] != null)
-                          Card(
-                            margin: const EdgeInsets.symmetric(vertical: 8),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            child: ListTile(
-                              title: const Text('Instructions'),
-                              subtitle: Text(booking?['instructions']),
-                            ),
-                          ),
-                        if (booking?['distance_km'] != null)
-                          Card(
-                            margin: const EdgeInsets.symmetric(vertical: 8),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            child: ListTile(
-                              title: const Text('Distance'),
-                              subtitle: Text('${booking?['distance_km']} km'),
-                            ),
-                          ),
-                        Card(
-                          margin: const EdgeInsets.symmetric(vertical: 8),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: _buildBookingDecisionSlider(),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        /*
-                        ElevatedButton(
-                          onPressed: () {
-                            // Future implementation: update status, etc.
-                          },
-                          child: const Text('Update Booking'),
-                        ),
-                        */
-                      ],
-                    ),
-                  ),
+                      ),
+          ),
+          if (isUpdating)
+            Container(
+              color: Colors.white,
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+        ],
       ),
     );
   }
