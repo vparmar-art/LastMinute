@@ -33,16 +33,17 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.0.104:8000/api/users/partner/profile/'),
+      Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
+      final properties = data['properties'];
       setState(() {
-        _driverNameController.text = data['driver_name'] ?? '';
-        _driverPhoneController.text = data['driver_phone'] ?? '';
-        _driverLicenseController.text = data['driver_license'] ?? '';
+        _driverNameController.text = properties['driver_name'] ?? '';
+        _driverPhoneController.text = properties['driver_phone'] ?? '';
+        _driverLicenseController.text = properties['driver_license'] ?? '';
       });
     } else {
       print('Failed to fetch driver details');
@@ -55,7 +56,7 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
     final token = prefs.getString('auth_token');
     if (token == null) return;
 
-    final uri = Uri.parse('http://192.168.0.104:8000/api/users/partner/profile/');
+    final uri = Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/');
     final request = http.MultipartRequest('PUT', uri)
       ..headers['Authorization'] = 'Token $token'
       ..fields['driver_name'] = _driverNameController.text

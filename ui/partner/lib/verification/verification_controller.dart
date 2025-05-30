@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'verification_screen.dart';
 
-const String baseUrl = 'http://192.168.0.104:8000/api';
+const String baseUrl = 'http://192.168.0.100:8000/api';
 
 class VerificationData {
   // Step 1 - Vehicle Owner Info
@@ -27,17 +27,17 @@ class VerificationData {
 
   Map<String, dynamic> toJson() {
     return {
-      'ownerFullName': ownerFullName,
-      'vehicleType': vehicleType,
-      'vehicleNumber': vehicleNumber,
-      'registrationNumber': registrationNumber,
-      'driverFullName': driverFullName,
-      'driverPhone': driverPhone,
-      'driverLicenseNumber': driverLicenseNumber,
-      'isAgreedToTerms': isAgreedToTerms,
-      'currentStep': currentStep,  // Add current step to the JSON data
-      'isRejected': isRejected,
-      'rejectionReason': rejectionReason,
+      'owner_full_name': ownerFullName,
+      'vehicle_type': vehicleType,
+      'vehicle_number': vehicleNumber,
+      'registration_number': registrationNumber,
+      'driver_name': driverFullName,
+      'driver_phone': driverPhone,
+      'driver_license': driverLicenseNumber,
+      'is_agreed_to_terms': isAgreedToTerms,
+      'current_step': currentStep,
+      'is_rejected': isRejected,
+      'rejection_reason': rejectionReason,
     };
   }
 
@@ -49,22 +49,22 @@ class VerificationData {
     );
 
     if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      print('Verification API Response: $data');  // Print response to console
+      final responseData = json.decode(response.body);
+      print('Verification API Response: $responseData');
+      final data = responseData['properties'];
 
       ownerFullName = data['owner_full_name'];
       vehicleType = data['vehicle_type'];
       vehicleNumber = data['vehicle_number'];
       registrationNumber = data['registration_number'];
-      driverFullName = data['driver_full_name'];
+      driverFullName = data['driver_name'];
       driverPhone = data['driver_phone'];
-      driverLicenseNumber = data['driver_license_number'];
-      isAgreedToTerms = data['is_agreed_to_terms'] ?? false;  // Corrected key name and default
-      currentStep = data['current_step'] ?? 1;  // Default to step 1 if null
+      driverLicenseNumber = data['driver_license'];
+      isAgreedToTerms = data['is_agreed_to_terms'] ?? false;
+      currentStep = data['current_step'] ?? 1;
       isRejected = data['is_rejected'] ?? false;
       rejectionReason = data['rejection_reason'];
     } else {
-      // Handle API error response here
       throw Exception('Failed to load verification data');
     }
   }

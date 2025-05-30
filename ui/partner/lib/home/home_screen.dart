@@ -62,7 +62,7 @@ void onStart(ServiceInstance service) async {
       );
 
       final response = await http.post(
-        Uri.parse('http://192.168.0.104:8000/api/users/partner/update-location/'),
+        Uri.parse('http://192.168.0.100:8000/api/users/partner/update-location/'),
         headers: {
           'Authorization': 'Token $token',
           'Content-Type': 'application/json',
@@ -281,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     final response = await http.put(
-      Uri.parse('http://192.168.0.104:8000/api/users/partner/profile/'),
+      Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/'),
       headers: {
         'Authorization': 'Token $token',
         'Content-Type': 'application/json',
@@ -302,20 +302,21 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.0.104:8000/api/users/partner/profile/'),
+      Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       print('Partner Profile Response: $data');
-      final isApproved = data['is_verified'] == true;
+      final properties = data['properties'];
+      final isApproved = properties['is_verified'] == true;
       if (!isApproved && mounted) {
         Navigator.pushReplacementNamed(context, '/verify');
       } else {
         setState(() {
-          _isLive = data['is_live'] ?? false;
-          _partnerName = data['driver_name'] ?? '';
+          _isLive = properties['is_live'] ?? false;
+          _partnerName = properties['driver_name'] ?? properties['owner_full_name'] ?? '';
           _isLoadingProfile = false;
         });
       }
@@ -332,7 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.0.104:8000/api/bookings/list/'),
+      Uri.parse('http://192.168.0.100:8000/api/bookings/list/'),
       headers: {'Authorization': 'Token $token'},
     );
 

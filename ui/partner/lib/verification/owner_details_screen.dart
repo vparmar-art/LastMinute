@@ -31,7 +31,7 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.0.104:8000/api/vehicles/types/'),
+      Uri.parse('http://192.168.0.100:8000/api/vehicles/types/'),
       headers: {'Authorization': 'Token $token'},
     );
 
@@ -52,22 +52,22 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.0.104:8000/api/users/partner/profile/'),
+      Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
+      final properties = data['properties'];
       setState(() {
-      _ownerFullNameController.text = data['owner_full_name'] ?? '';
-      _vehicleNumberController.text = data['vehicle_number'] ?? '';
-      _registrationNumberController.text = data['registration_number'] ?? '';
+        _ownerFullNameController.text = properties['owner_full_name'] ?? '';
+        _vehicleNumberController.text = properties['vehicle_number'] ?? '';
+        _registrationNumberController.text = properties['registration_number'] ?? '';
 
-      // Only set _selectedVehicleType if it exists in the fetched list
-      final fetchedVehicleType = data['vehicle_type'];
-      final exists = _vehicleTypes.any((v) => v['name'] == fetchedVehicleType);
-      _selectedVehicleType = exists ? fetchedVehicleType : null;
-    });
+        final fetchedVehicleType = properties['vehicle_type'];
+        final exists = _vehicleTypes.any((v) => v['name'] == fetchedVehicleType);
+        _selectedVehicleType = exists ? fetchedVehicleType : null;
+      });
     } else {
       print('Failed to fetch owner details');
     }
@@ -80,7 +80,7 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
     if (token == null) return;
 
     final response = await http.put(
-      Uri.parse('http://192.168.0.104:8000/api/users/partner/profile/'),
+      Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/'),
       headers: {
         'Authorization': 'Token $token',
         'Content-Type': 'application/json',  // Ensure this header is set

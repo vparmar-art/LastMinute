@@ -16,6 +16,7 @@ from django.core.cache import cache
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
+from users.serializers import PartnerSerializer  # ensure this import exists
 
 logger = logging.getLogger(__name__)
 
@@ -133,28 +134,8 @@ class PartnerProfileView(APIView):
             except Token.DoesNotExist:
                 return Response({'error': 'Invalid token'}, status=401)
 
-        profile_data = {
-            'phone_number': partner.phone_number,
-            'is_verified': partner.is_verified,
-            'is_live': partner.is_live,
-            'owner_full_name': partner.owner_full_name,
-            'vehicle_type': partner.vehicle_type,
-            'vehicle_number': partner.vehicle_number,
-            'registration_number': partner.registration_number,
-            'driver_name': partner.driver_name,
-            'driver_full_name': partner.driver_name,
-            'driver_phone': partner.driver_phone,
-            'driver_license': partner.driver_license,
-            'driver_license_number': partner.driver_license,
-            'license_document': partner.license_document.url if partner.license_document else None,
-            'registration_document': partner.registration_document.url if partner.registration_document else None,
-            'selfie': partner.selfie.url if partner.selfie else None,
-            'is_agreed_to_terms': getattr(partner, 'is_agreed_to_terms', False),
-            'current_step': getattr(partner, 'current_step', 1),
-            'is_rejected': getattr(partner, 'is_rejected', False),
-            'rejection_reason': getattr(partner, 'rejection_reason', None),
-        }
-        return Response(profile_data)
+        serializer = PartnerSerializer(partner)
+        return Response(serializer.data)
     
     def put(self, request):
         token_key = request.headers.get('Authorization', '').replace('Token ', '')
