@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class BookingScreen extends StatefulWidget {
   const BookingScreen({super.key});
@@ -16,6 +17,11 @@ class _BookingScreenState extends State<BookingScreen> {
   int? bookingId;
   bool _isLoading = true;
   String _partnerName = '';
+  String _driverPhone = '';
+  String _vehicleNumber = '';
+  String _vehicleType = '';
+  double? _lat;
+  double? _lng;
 
   @override
   void initState() {
@@ -41,7 +47,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Future<void> _fetchBooking() async {
     print('🔄 Fetching booking status for ID: $bookingId');
-    final url = Uri.parse('http://192.168.0.100:8000/api/bookings/$bookingId/');
+    final url = Uri.parse('http://192.168.0.101:8000/api/bookings/$bookingId/');
     try {
       final response = await http.get(url, headers: {
         'Content-Type': 'application/json',
@@ -69,7 +75,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _fetchPartnerProfile(int partnerId) async {
-    final url = Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/?id=$partnerId');
+    final url = Uri.parse('http://192.168.0.101:8000/api/users/partner/profile/?id=$partnerId');
     try {
       final response = await http.get(url, headers: {
         'Content-Type': 'application/json',
@@ -78,7 +84,14 @@ class _BookingScreenState extends State<BookingScreen> {
         print('📦 Partner profile response: ${response.body}');
         final data = json.decode(response.body);
         final properties = data['properties'];
+        final geometry = data['geometry'];
         _partnerName = properties['driver_name'] ?? '';
+        _driverPhone = properties['driver_phone']?.toString() ?? '';
+        _vehicleNumber = properties['vehicle_number'] ?? '';
+        _vehicleType = properties['vehicle_type'] ?? '';
+        final coords = geometry['coordinates'];
+        _lng = coords[0];
+        _lat = coords[1];
       } else {
         print('Error fetching partner profile: ${response.statusCode}');
       }
@@ -104,25 +117,63 @@ class _BookingScreenState extends State<BookingScreen> {
         backgroundColor: Colors.indigo,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Center(
-        child: _isLoading
-            ? const CircularProgressIndicator()
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Driver $_partnerName has accepted the booking.',
-                    style: const TextStyle(fontSize: 18),
-                    textAlign: TextAlign.center,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Stack(
+              children: [
+                if (_lat != null && _lng != null)
+                  GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: LatLng(_lat!, _lng!),
+                      zoom: 15,
+                    ),
+                    markers: {
+                      Marker(
+                        markerId: const MarkerId('driver'),
+                        position: LatLng(_lat!, _lng!),
+                        infoWindow: InfoWindow(
+                          title: _partnerName,
+                          snippet: '$_vehicleType ($_vehicleNumber)',
+                        ),
+                      ),
+                    },
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Booking ID: $bookingId',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Your driver $_partnerName is on the way',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 10),
+                        Text('Phone: $_driverPhone'),
+                        Text('Vehicle: $_vehicleType ($_vehicleNumber)'),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            // Add call or help support
+                          },
+                          icon: const Icon(Icons.phone),
+                          label: const Text('Contact Driver'),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-      ),
+                )
+              ],
+            ),
     );
   }
 }
