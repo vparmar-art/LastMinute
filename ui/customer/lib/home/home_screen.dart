@@ -237,8 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _fromFocus.unfocus();
     _toFocus.unfocus();
 
-    final fromLatLng =
-        await _apiService.getLatLngFromSuggestion(_fromController.text);
+    final fromLatLng = _bookingData.pickupLatLng;
     final toLatLng =
         await _apiService.getLatLngFromSuggestion(_toController.text);
     if (fromLatLng == null || toLatLng == null) return;

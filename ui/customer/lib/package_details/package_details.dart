@@ -86,6 +86,7 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
             color: theme.scaffoldBackgroundColor,
             child: ElevatedButton(
               onPressed: () async {
+                FocusScope.of(context).unfocus(); // Close keyboard
                 if (_formKey.currentState!.validate()) {
                   setState(() => _isLoading = true);
                   try {
