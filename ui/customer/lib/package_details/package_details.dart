@@ -91,12 +91,13 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                   setState(() => _isLoading = true);
                   try {
                     final prefs = await SharedPreferences.getInstance();
+                    final customer_id = prefs.getInt('customer');
                     widget.bookingData.description = _descriptionController.text;
                     widget.bookingData.weight = _weightController.text;
                     widget.bookingData.dimensions = _dimensionsController.text;
                     widget.bookingData.instructions = _instructionsController.text;
                     widget.bookingData.distanceKm = widget.bookingData.distanceKm;
-                    widget.bookingData.customer = '1';
+                    widget.bookingData.customer = customer_id?.toString();
                     print('📦 Booking data: ${jsonEncode(widget.bookingData.toJson())}');
                     final uri = Uri.parse('http://192.168.0.101:8000/api/bookings/start/');
 
