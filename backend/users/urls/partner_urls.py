@@ -6,5 +6,5 @@ urlpatterns = [
     path('verify-otp/', PartnerVerifyOTPView.as_view(), name='partner-verify-otp'),
     path('profile/', PartnerProfileView.as_view(), name='partner-profile'),
     path('profile/<int:id>/', PartnerProfileView.as_view(), name='partner-profile-id'),
-    path('update-location/', PartnerLocationView.as_view(), name='partner-update-location'),
+    path('location/', PartnerLocationView.as_view(), name='partner-update-location'),
 ]

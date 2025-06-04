@@ -89,6 +89,7 @@ class _BookingScreenState extends State<BookingScreen> {
               _isLoading = false;
             });
           }
+          _startLocationUpdates(partnerId);
           _pollingTimer?.cancel();
         }
       } else {
@@ -97,6 +98,32 @@ class _BookingScreenState extends State<BookingScreen> {
     } catch (e) {
       print('Error: $e');
     }
+  }
+
+  void _startLocationUpdates(int partnerId) {
+    Timer.periodic(const Duration(seconds: 5), (timer) async {
+      final url = Uri.parse('http://192.168.0.101:8000/api/users/partner/location/?partner_id=$partnerId');
+      try {
+        final response = await http.get(url, headers: {
+          'Content-Type': 'application/json',
+        });
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          print('📍 Partner location fetched: lat=${data['latitude']}, lng=${data['longitude']}');
+          setState(() {
+            _lat = data['latitude'];
+            _lng = data['longitude'];
+          });
+          if (_lat != null && _lng != null && _pickupLat != null && _pickupLng != null) {
+            await _drawRoute();
+          }
+        } else {
+          print('Location API error: ${response.statusCode}');
+        }
+      } catch (e) {
+        print('Location fetch error: $e');
+      }
+    });
   }
 
   Future<void> _fetchPartnerProfile(int partnerId) async {
