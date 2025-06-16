@@ -101,7 +101,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _startLocationUpdates(int partnerId) {
-    Timer.periodic(const Duration(seconds: 5), (timer) async {
+    Timer.periodic(const Duration(seconds: 10), (timer) async {
       final url = Uri.parse('http://192.168.0.101:8000/api/users/partner/location/?partner_id=$partnerId');
       try {
         final response = await http.get(url, headers: {

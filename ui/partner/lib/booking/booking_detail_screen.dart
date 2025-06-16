@@ -97,7 +97,18 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         await fetchBookingDetails(bookingId);
 
         if (status == 'arriving' && mounted) {
-          Navigator.pushReplacementNamed(context, '/booking', arguments: {'id': bookingId});
+          final pickupLatLng = booking?['pickup_latlng']?['coordinates'];
+          final pickupAddress = booking?['pickup_location'];
+          Navigator.pushReplacementNamed(
+            context,
+            '/booking',
+            arguments: {
+              'id': bookingId,
+              'pickup_lat': pickupLatLng != null ? pickupLatLng[1] : null,
+              'pickup_lng': pickupLatLng != null ? pickupLatLng[0] : null,
+              'pickup_address': pickupAddress,
+            },
+          );
         }
       } else {
         print('Failed to update booking status: ${response.statusCode}');

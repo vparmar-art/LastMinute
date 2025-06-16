@@ -263,7 +263,10 @@ class MyApp extends StatelessWidget {
             );
           },
         ),
-        '/booking': (context) => const BookingScreen(),
+        '/booking': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          return BookingScreen(key: UniqueKey());
+        },
         '/booking-detail': (context) => const BookingDetailScreen(),
       },
     );
