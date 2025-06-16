@@ -112,6 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startBackgroundLocationUpdates() {
+    _checkAndRequestPermissions();
     initializeService();
     print("🚀 Background location service started");
   }
@@ -318,6 +319,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _isLive = properties['is_live'] ?? false;
           _partnerName = properties['driver_name'] ?? properties['owner_full_name'] ?? '';
           _isLoadingProfile = false;
+          if (properties['is_live'] == true) {
+            _startBackgroundLocationUpdates();
+          }
         });
       }
     } else {
@@ -356,3 +360,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 }
+  Future<void> _checkAndRequestPermissions() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      permission = await Geolocator.requestPermission();
+      if (permission != LocationPermission.always && permission != LocationPermission.whileInUse) {
+        print("📛 Location permission not granted");
+        return;
+      }
+    }
+
+    final serviceStatus = await Geolocator.isLocationServiceEnabled();
+    if (!serviceStatus) {
+      print("📛 Location services are disabled");
+      return;
+    }
+
+    print("✅ Location permissions granted and service enabled");
+  }
