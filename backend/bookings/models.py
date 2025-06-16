@@ -31,6 +31,8 @@ class Booking(models.Model):
         default='created'
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    pickup_otp = models.CharField(max_length=4, blank=True, null=True)
+    drop_otp = models.CharField(max_length=4, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 

@@ -18,7 +18,7 @@ class BookingSerializer(serializers.ModelSerializer):
                   'drop_location', 'pickup_latlng', 'drop_latlng',
                   'pickup_time', 'drop_time', 'status', 'amount', 
                   'description', 'weight', 'dimensions', 'instructions', 'distance_km',
-                  'created_at', 'modified_at']
+                  'created_at', 'modified_at', 'distance_km', 'pickup_otp', 'drop_otp']
 
 @api_view(['GET', 'POST'])
 def booking_list(request):
@@ -68,30 +68,11 @@ def booking_detail(request, pk):
         return Response(serializer.data)
 
     elif request.method == 'PUT':
-        # Update status or other details
-        if 'status' in request.data:
-            booking.status = request.data['status']
-        if 'pickup_location' in request.data:
-            booking.pickup_location = request.data['pickup_location']
-        if 'drop_location' in request.data:
-            booking.drop_location = request.data['drop_location']
-        if 'pickup_time' in request.data:
-            booking.pickup_time = request.data['pickup_time']
-        if 'drop_time' in request.data:
-            booking.drop_time = request.data['drop_time']
-        if 'description' in request.data:
-            booking.description = request.data['description']
-        if 'weight' in request.data:
-            booking.weight = request.data['weight']
-        if 'dimensions' in request.data:
-            booking.dimensions = request.data['dimensions']
-        if 'instructions' in request.data:
-            booking.instructions = request.data['instructions']
-        if 'distance_km' in request.data:
-            booking.distance_km = request.data['distance_km']
-
-        booking.save()
-        return Response(BookingSerializer(booking).data)
+        serializer = BookingSerializer(booking, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 def update_booking_status(request, pk):
@@ -162,6 +143,10 @@ def start_booking(request):
     booking.instructions = request.data.get('instructions')
     booking.distance_km = request.data.get('distance_km')
 
+    import random
+    booking.pickup_otp = str(random.randint(1000, 9999))
+    booking.drop_otp = str(random.randint(1000, 9999))
+
     pickup = request.data.get('pickup_latlng')
     drop = request.data.get('drop_latlng')
 
@@ -177,6 +162,8 @@ def start_booking(request):
 
     # Defensive check to ensure booking.id is set before notification
     if not booking.id:
+        booking.save()
+    else:
         booking.save()
     print(f"✅ Booking saved with ID: {booking.id}")
 
@@ -210,3 +197,34 @@ def start_booking(request):
             continue  # Log or handle failure if needed
 
     return Response(BookingSerializer(booking).data, status=status.HTTP_201_CREATED)
+
+
+# New view to validate pickup OTP for a booking
+@api_view(['POST'])
+def validate_pickup_otp(request):
+    """
+    Validate the pickup OTP for a booking.
+    """
+    booking_id = request.data.get('booking_id')
+    if not booking_id:
+        return Response({'error': 'booking_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        booking = Booking.objects.get(pk=booking_id)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    input_otp = request.data.get('otp')
+    if not input_otp:
+        return Response({'error': 'OTP is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if booking.pickup_otp == input_otp:
+        return Response({
+            'success': 'OTP validated successfully',
+            'drop_location': booking.drop_location,
+            'drop_latlng': {
+                'lat': booking.drop_latlng.y if booking.drop_latlng else None,
+                'lng': booking.drop_latlng.x if booking.drop_latlng else None
+            }
+        }, status=status.HTTP_200_OK)
+    else:
+        return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)

@@ -51,6 +51,7 @@ void onStart(ServiceInstance service) async {
     service.stopSelf();
   });
 
+  /*
   Timer.periodic(const Duration(seconds: 15), (timer) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
@@ -82,6 +83,7 @@ void onStart(ServiceInstance service) async {
       print('🚨 Error updating location: $e');
     }
   });
+  */
 }
 
 class HomeScreen extends StatefulWidget {

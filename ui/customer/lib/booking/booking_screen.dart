@@ -17,6 +17,7 @@ class BookingScreen extends StatefulWidget {
 }
 
 class _BookingScreenState extends State<BookingScreen> {
+  Timer? _locationUpdateTimer;
   final String googleApiKey = 'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II';
   final ApiService _apiService = ApiService(googleApiKey: 'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II');
   Timer? _pollingTimer;
@@ -37,6 +38,7 @@ class _BookingScreenState extends State<BookingScreen> {
   double? _customerLat;
   double? _customerLng;
   GoogleMapController? _mapController;
+  String? _pickupOtp;
 
   @override
   void initState() {
@@ -72,6 +74,9 @@ class _BookingScreenState extends State<BookingScreen> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        final pickupOtp = data['pickup_otp'];
+        print('🔐 Pickup OTP: $pickupOtp');
+        _pickupOtp = data['pickup_otp']?.toString();
         if (data['status'] == 'arriving' && !_isArriving) {
           final partnerId = data['partner'];
           final pickupLatLng = data['pickup_latlng'];
@@ -101,7 +106,8 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _startLocationUpdates(int partnerId) {
-    Timer.periodic(const Duration(seconds: 10), (timer) async {
+    _locationUpdateTimer?.cancel(); // Cancel existing timer if any
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
       final url = Uri.parse('http://192.168.0.101:8000/api/users/partner/location/?partner_id=$partnerId');
       try {
         final response = await http.get(url, headers: {
@@ -284,6 +290,7 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   void dispose() {
     _pollingTimer?.cancel();
+    _locationUpdateTimer?.cancel();
     super.dispose();
   }
 
@@ -340,6 +347,13 @@ class _BookingScreenState extends State<BookingScreen> {
                           const SizedBox(height: 10),
                           Text('Phone: $_driverPhone', style: GoogleFonts.manrope()),
                           Text('Vehicle: $_vehicleType ($_vehicleNumber)', style: GoogleFonts.manrope()),
+                          if (_pickupOtp != null) ...[
+                            const SizedBox(height: 10),
+                            Text(
+                              'Pickup OTP: $_pickupOtp',
+                              style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigo),
+                            ),
+                          ],
                           const SizedBox(height: 20),
                           ElevatedButton.icon(
                             onPressed: () async {
