@@ -228,3 +228,28 @@ def validate_pickup_otp(request):
         }, status=status.HTTP_200_OK)
     else:
         return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def validate_drop_otp(request):
+    """
+    Validate the drop OTP for a booking.
+    """
+    booking_id = request.data.get('booking_id')
+    if not booking_id:
+        return Response({'error': 'booking_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        booking = Booking.objects.get(pk=booking_id)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    input_otp = request.data.get('otp')
+    if not input_otp:
+        return Response({'error': 'OTP is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if booking.drop_otp == input_otp:
+        return Response({
+            'success': 'Drop OTP validated successfully',
+            'message': f'Drop complete for booking {booking.id}'
+        }, status=status.HTTP_200_OK)
+    else:
+        return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)

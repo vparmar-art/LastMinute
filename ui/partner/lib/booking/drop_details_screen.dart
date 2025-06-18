@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart' as launcher;
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 
 class DropScreen extends StatefulWidget {
   const DropScreen({super.key});
@@ -44,6 +45,74 @@ class _DropScreenState extends State<DropScreen> {
         );
       }
     }
+  }
+
+  void _showOtpDialog() {
+    String enteredOtp = '';
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Enter 4-digit OTP'),
+          content: TextField(
+            maxLength: 4,
+            keyboardType: TextInputType.number,
+            onChanged: (value) {
+              enteredOtp = value;
+            },
+            decoration: const InputDecoration(
+              counterText: '',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (enteredOtp.length != 4 || bookingId == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Invalid OTP or Booking ID')),
+                  );
+                  return;
+                }
+
+                print('✅ Drop OTP entered: $enteredOtp');
+                try {
+                  final response = await http.post(
+                    Uri.parse('http://192.168.0.100:8000/api/bookings/validate-drop-otp/'),
+                    headers: {'Content-Type': 'application/json'},
+                    body: jsonEncode({
+                      'booking_id': bookingId,
+                      'otp': enteredOtp,
+                    }),
+                  );
+
+                  print('🔁 Drop OTP Response: ${response.statusCode}');
+                  print('🔁 Response Body: ${response.body}');
+
+                  if (response.statusCode == 200) {
+                    Navigator.pushReplacementNamed(context, '/home');
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('❌ Invalid OTP. Please try again.')),
+                    );
+                  }
+                } catch (e) {
+                  print('Error: $e');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('❌ Error validating OTP')),
+                  );
+                }
+              },
+              child: const Text('Submit'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -91,9 +160,7 @@ class _DropScreenState extends State<DropScreen> {
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: () {
-                // TODO: Implement end trip functionality
-              },
+              onPressed: _showOtpDialog,
               icon: const Icon(Icons.check_circle),
               label: const Text('End Trip'),
               style: ElevatedButton.styleFrom(

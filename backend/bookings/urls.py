@@ -7,4 +7,5 @@ urlpatterns = [
     path('<int:pk>/status/', views.update_booking_status, name='update_booking_status'),  # To update the status of a booking
     path('start/', views.start_booking, name='start_booking'),
     path('validate-pickup-otp/', views.validate_pickup_otp, name='validate_pickup_otp'),
+    path('validate-drop-otp/', views.validate_drop_otp, name='validate_drop_otp'),
 ]
