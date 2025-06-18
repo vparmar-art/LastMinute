@@ -15,7 +15,8 @@
         android:usesCleartextTraffic="true"
         android:allowBackup="true"
         android:fullBackupContent="true"
-        android:theme="@style/LaunchTheme">
+        android:theme="@style/LaunchTheme"
+        android:enableOnBackInvokedCallback="true">
         <service
         android:name="id.flutter.flutter_background_service.BackgroundService"
         android:exported="false"

@@ -4,40 +4,39 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart' as launcher;
 import 'package:geolocator/geolocator.dart';
 
-class BookingScreen extends StatefulWidget {
-  const BookingScreen({super.key});
+class PickupScreen extends StatefulWidget {
+  const PickupScreen({super.key});
 
   @override
-  State<BookingScreen> createState() => _BookingScreenState();
+  State<PickupScreen> createState() => _PickupScreenState();
 }
 
-class _BookingScreenState extends State<BookingScreen> {
-  int? bookingId;
-  double? pickupLat;
-  double? pickupLng;
+class _PickupScreenState extends State<PickupScreen> {
+  int? pickupBookingId;
+  double? pickupLatitude;
+  double? pickupLongitude;
   String? pickupAddress;
-  String? _dropLocation;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-      if (args != null) {
+      if (args != null && pickupLatitude == null && pickupLongitude == null && pickupAddress == null) {
         setState(() {
-          bookingId = args['id'];
-          pickupLat = args['pickup_lat'];
-          pickupLng = args['pickup_lng'];
+          pickupBookingId = args['id'];
+          pickupLatitude = args['pickup_lat'];
+          pickupLongitude = args['pickup_lng'];
           pickupAddress = args['pickup_address'];
         });
-        print('📦 BookingScreen args: id=$bookingId, pickupLat=$pickupLat, pickupLng=$pickupLng, pickupAddress=$pickupAddress');
+        print('📦 PickupScreen args: id=$pickupBookingId, pickupLatitude=$pickupLatitude, pickupLongitude=$pickupLongitude, pickupAddress=$pickupAddress');
       }
     });
   }
 
   void _launchNavigation() async {
-    if (pickupLat != null && pickupLng != null) {
-      final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$pickupLat,$pickupLng');
+    if (pickupLatitude != null && pickupLongitude != null) {
+      final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$pickupLatitude,$pickupLongitude');
       try {
         await launcher.launchUrl(url, mode: launcher.LaunchMode.externalApplication);
       } catch (e) {
@@ -49,8 +48,8 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _checkIfArrived() async {
-    if (pickupLat == null || pickupLng == null) {
-      print('❌ Cannot check arrival: pickupLat or pickupLng is null');
+    if (pickupLatitude == null || pickupLongitude == null) {
+      print('❌ Cannot check arrival: pickupLatitude or pickupLongitude is null');
       return;
     }
 
@@ -65,16 +64,13 @@ class _BookingScreenState extends State<BookingScreen> {
     double distance = Geolocator.distanceBetween(
       position.latitude,
       position.longitude,
-      pickupLat!,
-      pickupLng!,
+      pickupLatitude!,
+      pickupLongitude!,
     );
 
     print('📍 Distance to pickup: $distance meters');
 
     if (distance < 150) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ You have arrived at the pickup location')),
-      );
       _showOtpDialog();
       // Call an API here if needed
     }
@@ -105,31 +101,39 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (enteredOtp.length != 4 || bookingId == null) {
+                if (enteredOtp.length != 4 || pickupBookingId == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Invalid OTP or Booking ID')),
                   );
                   return;
                 }
 
-                ; // Close the dialog immediately
+                // Only close the dialog after successful verification
 
                 print('✅ OTP entered: $enteredOtp');
                 try {
                   final response = await http.post(
-                    Uri.parse('http://192.168.0.101:8000/api/bookings/validate-pickup-otp/'),
+                    Uri.parse('http://192.168.0.100:8000/api/bookings/validate-pickup-otp/'),
                     headers: {'Content-Type': 'application/json'},
                     body: jsonEncode({
-                      'booking_id': bookingId,
+                      'booking_id': pickupBookingId,
                       'otp': enteredOtp,
                     }),
                   );
 
                   if (response.statusCode == 200) {
-                    Navigator.of(context).pop();
-                    final data = jsonDecode(response.body);
-                    print('📦 Drop location: ${data['drop_location']}');
-                    print('📍 Drop coordinates: ${data['drop_latlng']}');
+                    print('🔁 OTP Validation Response: ${response.statusCode}');
+                    print('🔁 Response Body: ${response.body}');
+                    final responseData = jsonDecode(response.body);
+                    Navigator.pushNamed(
+                      context,
+                      '/drop',
+                      arguments: {
+                        'booking_id': pickupBookingId,
+                        'drop_location': responseData['drop_location'],
+                        'drop_latlng': responseData['drop_latlng'],
+                      },
+                    );
                   } else {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -154,12 +158,13 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Booking In Progress',
+          'Pickup Verification',
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: Colors.indigo,
@@ -174,12 +179,12 @@ class _BookingScreenState extends State<BookingScreen> {
           children: [
             const SizedBox(height: 20),
             Text(
-              'Booking ID: ${bookingId ?? "-"}',
+              'Booking ID: ${pickupBookingId ?? "-"}',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             Text(
-              'Pickup Coordinates: (${pickupLat ?? "-"}, ${pickupLng ?? "-"})',
+              'Pickup Coordinates: (${pickupLatitude ?? "-"}, ${pickupLongitude ?? "-"})',
             ),
             const SizedBox(height: 10),
             if (pickupAddress != null)

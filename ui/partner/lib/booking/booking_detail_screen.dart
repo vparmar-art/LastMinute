@@ -43,7 +43,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   }
 
   Future<void> fetchBookingDetails(int id) async {
-    final url = Uri.parse('http://192.168.0.101:8000/api/bookings/$id/');
+    final url = Uri.parse('http://192.168.0.100:8000/api/bookings/$id/');
     print('Fetching booking details for ID: $id from $url');
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -81,7 +81,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     });
 
     try {
-      final url = Uri.parse('http://192.168.0.101:8000/api/bookings/$bookingId/status/');
+      final url = Uri.parse('http://192.168.0.100:8000/api/bookings/$bookingId/status/');
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
       final response = await http.post(
@@ -101,7 +101,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
           final pickupAddress = booking?['pickup_location'];
           Navigator.pushReplacementNamed(
             context,
-            '/booking',
+            '/pick-up',
             arguments: {
               'id': bookingId,
               'pickup_lat': pickupLatLng != null ? pickupLatLng[1] : null,

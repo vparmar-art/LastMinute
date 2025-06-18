@@ -63,7 +63,7 @@ void onStart(ServiceInstance service) async {
       );
 
       final response = await http.post(
-        Uri.parse('http://192.168.0.101:8000/api/users/partner/location/'),
+        Uri.parse('http://192.168.0.100:8000/api/users/partner/location/'),
         headers: {
           'Authorization': 'Token $token',
           'Content-Type': 'application/json',
@@ -284,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     final response = await http.put(
-      Uri.parse('http://192.168.0.101:8000/api/users/partner/profile/'),
+      Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/'),
       headers: {
         'Authorization': 'Token $token',
         'Content-Type': 'application/json',
@@ -305,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.0.101:8000/api/users/partner/profile/'),
+      Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
@@ -339,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.0.101:8000/api/bookings/list/'),
+      Uri.parse('http://192.168.0.100:8000/api/bookings/list/'),
       headers: {'Authorization': 'Token $token'},
     );
 

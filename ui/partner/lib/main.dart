@@ -12,7 +12,8 @@ import 'verification/driver_details_screen.dart';
 import 'verification/verification_screen.dart';
 import 'verification/verification_controller.dart';
 import 'booking/booking_detail_screen.dart';
-import 'booking/booking_screen.dart';
+import 'booking/pickup_details_screen.dart';
+import 'booking/drop_details_screen.dart';
 
 Future<bool> requestLocationPermissions() async {
   var status = await Permission.location.status;
@@ -263,9 +264,13 @@ class MyApp extends StatelessWidget {
             );
           },
         ),
-        '/booking': (context) {
+        '/pick-up': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-          return BookingScreen(key: UniqueKey());
+          return PickupScreen(key: UniqueKey());
+        },
+        '/drop': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          return DropScreen(key: UniqueKey());
         },
         '/booking-detail': (context) => const BookingDetailScreen(),
       },

@@ -99,7 +99,7 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                     widget.bookingData.distanceKm = widget.bookingData.distanceKm;
                     widget.bookingData.customer = customer_id?.toString();
                     print('📦 Booking data: ${jsonEncode(widget.bookingData.toJson())}');
-                    final uri = Uri.parse('http://192.168.0.101:8000/api/bookings/start/');
+                    final uri = Uri.parse('http://192.168.0.100:8000/api/bookings/start/');
 
                     final response = await http.post(
                       uri,
