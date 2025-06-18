@@ -218,6 +218,8 @@ def validate_pickup_otp(request):
         return Response({'error': 'OTP is required'}, status=status.HTTP_400_BAD_REQUEST)
 
     if booking.pickup_otp == input_otp:
+        booking.status = 'in_transit'
+        booking.save()
         return Response({
             'success': 'OTP validated successfully',
             'drop_location': booking.drop_location,
@@ -247,6 +249,8 @@ def validate_drop_otp(request):
         return Response({'error': 'OTP is required'}, status=status.HTTP_400_BAD_REQUEST)
 
     if booking.drop_otp == input_otp:
+        booking.status = 'completed'
+        booking.save()
         return Response({
             'success': 'Drop OTP validated successfully',
             'message': f'Drop complete for booking {booking.id}'

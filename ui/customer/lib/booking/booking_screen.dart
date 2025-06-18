@@ -32,6 +32,8 @@ class _BookingScreenState extends State<BookingScreen> {
   double? _lng;
   double? _pickupLat;
   double? _pickupLng;
+  double? _dropLat;
+  double? _dropLng;
   BitmapDescriptor? _driverIcon;
   List<Polyline> _polylines = [];
   Set<Marker> _markers = {};
@@ -95,7 +97,33 @@ class _BookingScreenState extends State<BookingScreen> {
             });
           }
           _startLocationUpdates(partnerId);
-          _pollingTimer?.cancel();
+        }
+        if (data['status'] == 'in_transit') {
+          print('🚗 Ride is ongoing');
+          final dropLatLng = data['drop_latlng'];
+          if (dropLatLng != null) {
+            final coords = dropLatLng['coordinates'];
+            if (coords != null && coords.length >= 2) {
+              _dropLng = coords[0];
+              _dropLat = coords[1];
+            }
+          }
+          if (mounted) {
+            setState(() {
+              _isArriving = false;
+              _isLoading = false;
+              _drawDropRoute();
+            });
+          }
+          // _pollingTimer?.cancel();
+        }
+        if (data['status'] == 'completed') {
+          print('✅ Ride completed, navigating to home');
+          dispose();
+          if (mounted) {
+            Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+          }
+          return;
         }
       } else {
         print('Error fetching booking: ${response.statusCode}');
@@ -120,7 +148,10 @@ class _BookingScreenState extends State<BookingScreen> {
             _lat = data['latitude'];
             _lng = data['longitude'];
           });
-          if (_lat != null && _lng != null && _pickupLat != null && _pickupLng != null) {
+          if (!_isArriving && _dropLat != null && _dropLng != null) {
+            await _drawDropRoute();
+          }
+          if (_isArriving && _lat != null && _lng != null && _pickupLat != null && _pickupLng != null) {
             await _drawRoute();
           }
         } else {
@@ -287,6 +318,53 @@ class _BookingScreenState extends State<BookingScreen> {
     setState(() {});
   }
 
+  Future<void> _drawDropRoute() async {
+    if (_lat == null || _lng == null || _dropLat == null || _dropLng == null) return;
+
+    final from = LatLng(_lat!, _lng!);
+    final to = LatLng(_dropLat!, _dropLng!);
+    final polylineCoordinates = await _apiService.getRoutePolyline(from, to);
+
+    _polylines = [
+      Polyline(
+        polylineId: const PolylineId('driver_to_drop'),
+        color: Colors.green,
+        width: 5,
+        points: polylineCoordinates,
+      )
+    ];
+
+    _markers = {
+      Marker(
+        markerId: const MarkerId('driver'),
+        position: from,
+        icon: _driverIcon ?? BitmapDescriptor.defaultMarker,
+      ),
+      Marker(
+        markerId: const MarkerId('drop'),
+        position: to,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        infoWindow: const InfoWindow(title: 'Drop Location'),
+      ),
+    };
+
+    if (mounted && _mapController != null) {
+      final bounds = LatLngBounds(
+        southwest: LatLng(
+          _lat! < _dropLat! ? _lat! : _dropLat!,
+          _lng! < _dropLng! ? _lng! : _dropLng!,
+        ),
+        northeast: LatLng(
+          _lat! > _dropLat! ? _lat! : _dropLat!,
+          _lng! > _dropLng! ? _lng! : _dropLng!,
+        ),
+      );
+      _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 60));
+    }
+
+    setState(() {});
+  }
+
   @override
   void dispose() {
     _pollingTimer?.cancel();
@@ -302,7 +380,7 @@ class _BookingScreenState extends State<BookingScreen> {
         elevation: 0,
         backgroundColor: Colors.white,
         title: Text(
-          _isArriving ? 'Arriving' : 'Booking In Progress',
+          _isArriving ? 'Arriving' : (_pickupOtp == null ? 'Booking In Progress' : 'Ride In Progress'),
           style: GoogleFonts.manrope(
             color: Colors.black,
             fontSize: 20,
@@ -325,66 +403,67 @@ class _BookingScreenState extends State<BookingScreen> {
                     markers: _markers,
                     onMapCreated: (controller) => _mapController = controller,
                   ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: SafeArea(
-                    child: Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Your driver $_partnerName is on the way',
-                            style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 10),
-                          Text('Phone: $_driverPhone', style: GoogleFonts.manrope()),
-                          Text('Vehicle: $_vehicleType ($_vehicleNumber)', style: GoogleFonts.manrope()),
-                          if (_pickupOtp != null) ...[
-                            const SizedBox(height: 10),
+                if (_isArriving)
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: SafeArea(
+                      child: Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                             Text(
-                              'Pickup OTP: $_pickupOtp',
-                              style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigo),
+                              'Your driver $_partnerName is on the way',
+                              style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
-                          ],
-                          const SizedBox(height: 20),
-                          ElevatedButton.icon(
-                            onPressed: () async {
-                              final cleanedPhone = _driverPhone.replaceAll(RegExp(r'[^+\d]'), '');
-                              final uri = Uri(scheme: 'tel', path: cleanedPhone);
+                            const SizedBox(height: 10),
+                            Text('Phone: $_driverPhone', style: GoogleFonts.manrope()),
+                            Text('Vehicle: $_vehicleType ($_vehicleNumber)', style: GoogleFonts.manrope()),
+                            if (_pickupOtp != null) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                'Pickup OTP: $_pickupOtp',
+                                style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigo),
+                              ),
+                            ],
+                            const SizedBox(height: 20),
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                final cleanedPhone = _driverPhone.replaceAll(RegExp(r'[^+\d]'), '');
+                                final uri = Uri(scheme: 'tel', path: cleanedPhone);
 
-                              final canLaunch = await canLaunchUrl(uri);
+                                final canLaunch = await canLaunchUrl(uri);
 
-                              if (canLaunch) {
-                                final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Could not launch dialer for $cleanedPhone')),
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.phone),
-                            label: Text('Contact Driver', style: GoogleFonts.manrope()),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              minimumSize: const Size(double.infinity, 48),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                if (canLaunch) {
+                                  final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Could not launch dialer for $cleanedPhone')),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.phone),
+                              label: Text('Contact Driver', style: GoogleFonts.manrope()),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                                minimumSize: const Size(double.infinity, 48),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                )
+                  )
               ],
             ),
     );
