@@ -41,6 +41,7 @@ class _BookingScreenState extends State<BookingScreen> {
   double? _customerLng;
   GoogleMapController? _mapController;
   String? _pickupOtp;
+  String? _dropOtp;
 
   @override
   void initState() {
@@ -79,6 +80,7 @@ class _BookingScreenState extends State<BookingScreen> {
         final pickupOtp = data['pickup_otp'];
         print('🔐 Pickup OTP: $pickupOtp');
         _pickupOtp = data['pickup_otp']?.toString();
+        _dropOtp = data['drop_otp']?.toString();
         if (data['status'] == 'arriving' && !_isArriving) {
           final partnerId = data['partner'];
           final pickupLatLng = data['pickup_latlng'];
@@ -359,7 +361,7 @@ class _BookingScreenState extends State<BookingScreen> {
           _lng! > _dropLng! ? _lng! : _dropLng!,
         ),
       );
-      _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 60));
+      _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 180));
     }
 
     setState(() {});
@@ -403,36 +405,42 @@ class _BookingScreenState extends State<BookingScreen> {
                     markers: _markers,
                     onMapCreated: (controller) => _mapController = controller,
                   ),
-                if (_isArriving)
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: SafeArea(
-                      child: Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Your driver $_partnerName is on the way',
-                              style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: SafeArea(
+                    child: Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _isArriving
+                                ? 'Your driver $_partnerName is on the way'
+                                : 'Ride in progress with $_partnerName',
+                            style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 10),
+                          Text('Phone: $_driverPhone', style: GoogleFonts.manrope()),
+                          Text('Vehicle: $_vehicleType ($_vehicleNumber)', style: GoogleFonts.manrope()),
+                          if (_pickupOtp != null) ...[
                             const SizedBox(height: 10),
-                            Text('Phone: $_driverPhone', style: GoogleFonts.manrope()),
-                            Text('Vehicle: $_vehicleType ($_vehicleNumber)', style: GoogleFonts.manrope()),
-                            if (_pickupOtp != null) ...[
-                              const SizedBox(height: 10),
-                              Text(
-                                'Pickup OTP: $_pickupOtp',
-                                style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigo),
+                            Text(
+                              _isArriving ? 'Pickup OTP: $_pickupOtp' : 'Drop OTP: $_dropOtp',
+                              style: GoogleFonts.manrope(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.indigo,
                               ),
-                            ],
+                            ),
+                          ],
+                          if (_isArriving) ...[
                             const SizedBox(height: 20),
                             ElevatedButton.icon(
                               onPressed: () async {
@@ -459,11 +467,12 @@ class _BookingScreenState extends State<BookingScreen> {
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                          ]
+                        ],
                       ),
                     ),
-                  )
+                  ),
+                )
               ],
             ),
     );
