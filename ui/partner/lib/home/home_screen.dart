@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 // Add these imports
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -233,7 +234,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 Text('Plan Validity', style: TextStyle(fontSize: 16)),
                                 SizedBox(height: 8),
-                                Text(_walletValidUntil ?? 'No Plans', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                                Text(
+                                  _walletValidUntil != null
+                                      ? DateFormat("d'th' MMMM, y").format(DateTime.parse(_walletValidUntil!)).replaceAll('1th', '1st').replaceAll('2th', '2nd').replaceAll('3th', '3rd')
+                                      : 'No Plans',
+                                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                ),
                               ],
                             ),
                           ),

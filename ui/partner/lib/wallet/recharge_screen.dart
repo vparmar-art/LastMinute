@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RechargeScreen extends StatefulWidget {
   const RechargeScreen({super.key});
@@ -37,15 +38,50 @@ class _RechargeScreenState extends State<RechargeScreen> {
     });
   }
 
-  void _pay() {
+  void _pay() async {
     if (_selectedPlanId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('PLEASE SELECT A PLAN')),
       );
       return;
     }
-    // TODO: Trigger payment logic
-    print('✅ Selected Plan ID: $_selectedPlanId');
+
+    final prefs = await SharedPreferences.getInstance();
+    final partnerId = prefs.getInt('partner_id');
+    if (partnerId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PARTNER ID NOT FOUND')),
+      );
+      return;
+    }
+
+    final response = await http.post(
+      Uri.parse('http://192.168.0.100:8000/api/wallet/recharge/'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'partner_id': partnerId,
+        'plan_id': _selectedPlanId,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print('✅ Recharge successful: ${response.body}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('RECHARGE SUCCESSFUL'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+      }
+    } else {
+      print('❌ Recharge failed: ${response.statusCode} ${response.body}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('RECHARGE FAILED')),
+      );
+    }
   }
 
   @override
