@@ -26,6 +26,7 @@ urlpatterns = [
     path('api/users/', include('users.urls')),
     path('api/vehicles/', include('vehicles.urls')),
     path('api/bookings/', include('bookings.urls')),
+    path('api/wallet/', include('wallet.urls')),
 ]
 
 if settings.DEBUG:

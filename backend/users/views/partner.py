@@ -17,8 +17,25 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from users.serializers import PartnerSerializer  # ensure this import exists
+from wallet.models import PartnerWallet
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+def check_partner_wallet(partner):
+    wallet = partner.wallet
+    if not wallet:
+        return False
+
+    # Ride-based plan: check credits
+    if wallet.rides_remaining > 0:
+        return True
+
+    # Duration-based plan: check validity
+    if wallet.valid_until and wallet.valid_until >= timezone.now():
+        return True
+
+    return False
 
 class PartnerSendOTPView(APIView):
     permission_classes = [AllowAny]
@@ -149,6 +166,12 @@ class PartnerProfileView(APIView):
             return Response({'error': 'Invalid token'}, status=401)
 
         data = request.data
+
+        # partner is trying to go live
+        if partner.is_live == False and data['is_live'] == True:
+            can_go_live = check_partner_wallet(partner)
+            if not can_go_live:
+                return Response({'error': 'No active plan. Please recharge to go live.'}, status=403)
 
         # Update partner fields safely, only if keys exist
         for field in ['owner_full_name', 'vehicle_type', 'vehicle_number', 'registration_number',

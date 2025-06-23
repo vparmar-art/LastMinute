@@ -31,6 +31,7 @@ class Partner(models.Model):
     is_rejected = models.BooleanField(default=False)
     rejection_reason = models.TextField(blank=True)
 
+    wallet = models.OneToOneField('wallet.PartnerWallet', on_delete=models.SET_NULL, null=True, blank=True, related_name='partner_profile')
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):

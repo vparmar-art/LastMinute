@@ -103,6 +103,10 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingProfile = true;
   bool _isSliderInitialized = false;
 
+  int _ridesRemaining = 0;
+  double _walletBalance = 0.0;
+  String? _walletValidUntil;
+
   @override
   void initState() {
     FlutterBackgroundService().invoke("stopService");
@@ -143,59 +147,107 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: _isLoadingProfile
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Welcome, $_partnerName!',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          const Text('Total Earnings Today', style: TextStyle(fontSize: 16)),
-                          const SizedBox(height: 8),
-                          Text('₹${_totalEarnings.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
+          : Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Welcome, $_partnerName!',
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              children: [
+                                const Text('Total Earnings Today', style: TextStyle(fontSize: 16)),
+                                const SizedBox(height: 8),
+                                Text('₹${_totalEarnings.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              children: const [
+                                Text('Live Hours', style: TextStyle(fontSize: 16)),
+                                SizedBox(height: 8),
+                                Text('0h 0m', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Column(
+                              children: [
+                                Text('Total Bookings', style: TextStyle(fontSize: 16)),
+                                SizedBox(height: 8),
+                                Text('$_totalBookings', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Column(
+                              children: [
+                                Text('Rides Remaining', style: TextStyle(fontSize: 16)),
+                                SizedBox(height: 8),
+                                Text('$_ridesRemaining', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Column(
+                              children: [
+                                Text('Wallet Balance', style: TextStyle(fontSize: 16)),
+                                SizedBox(height: 8),
+                                Text('₹${_walletBalance.toStringAsFixed(2)}', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Column(
+                              children: [
+                                Text('Plan Validity', style: TextStyle(fontSize: 16)),
+                                SizedBox(height: 8),
+                                Text(_walletValidUntil ?? 'No Plans', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: const [
-                          Text('Live Hours', style: TextStyle(fontSize: 16)),
-                          SizedBox(height: 8),
-                          Text('0h 0m', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          Text('Total Bookings', style: TextStyle(fontSize: 16)),
-                          SizedBox(height: 8),
-                          Text('$_totalBookings', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _buildLiveToggle(),
-                ],
-              ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: _buildLiveToggle(),
+                ),
+              ],
             ),
     );
   }
@@ -223,16 +275,33 @@ class _HomeScreenState extends State<HomeScreen> {
             bool goingLive = _dragPosition > _maxDrag / 2;
 
             setState(() {
-              _isLive = goingLive;
-              _dragPosition = goingLive ? _maxDrag : 0.0;
+              _isLoadingProfile = true;
             });
 
+            bool success;
             if (goingLive) {
               _startBackgroundLocationUpdates();
-              await _updateLiveStatus(true);
+              success = await _updateLiveStatus(true);
             } else {
               _stopBackgroundLocationUpdates();
-              await _updateLiveStatus(false);
+              success = await _updateLiveStatus(false);
+            }
+
+            setState(() {
+              _isLoadingProfile = false;
+            });
+
+            if (mounted) {
+              if (success) {
+                setState(() {
+                  _isLive = goingLive;
+                  _dragPosition = goingLive ? _maxDrag : 0.0;
+                });
+              } else {
+                setState(() {
+                  _dragPosition = _isLive ? _maxDrag : 0.0;
+                });
+              }
             }
           },
           child: Container(
@@ -278,10 +347,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _updateLiveStatus(bool value) async {
+  Future<bool> _updateLiveStatus(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    if (token == null) return;
+    if (token == null) return false;
 
     final response = await http.put(
       Uri.parse('http://192.168.0.100:8000/api/users/partner/profile/'),
@@ -294,8 +363,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (response.statusCode == 200) {
       print('✅ Live status updated to $value');
+      return true;
+    } else if (response.statusCode == 403 && mounted) {
+      Navigator.pushNamed(context, '/plans');
+      return false;
     } else {
-      print('❌ Failed to update live status: ${response.statusCode}');
+      print('❌ Failed to update live status: ${response}');
+      return false;
     }
   }
 
@@ -317,6 +391,23 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!isApproved && mounted) {
         Navigator.pushReplacementNamed(context, '/verify');
       } else {
+        final partnerId = data['id'];
+        await prefs.setInt('partner_id', partnerId);
+        final walletResponse = await http.get(
+          Uri.parse('http://192.168.0.100:8000/api/wallet/partner-wallet/$partnerId/'),
+          headers: {'Authorization': 'Token $token'},
+        );
+
+        if (walletResponse.statusCode == 200) {
+          final walletData = json.decode(walletResponse.body);
+          print('Partner Wallet: $walletData');
+          setState(() {
+            _ridesRemaining = walletData['rides_remaining'] ?? 0;
+            _walletBalance = double.tryParse(walletData['balance'].toString()) ?? 0.0;
+            _walletValidUntil = walletData['valid_until'];
+          });
+        }
+
         setState(() {
           _isLive = properties['is_live'] ?? false;
           _partnerName = properties['driver_name'] ?? properties['owner_full_name'] ?? '';

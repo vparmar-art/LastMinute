@@ -14,6 +14,7 @@ import 'verification/verification_controller.dart';
 import 'booking/booking_detail_screen.dart';
 import 'booking/pickup_details_screen.dart';
 import 'booking/drop_details_screen.dart';
+import 'wallet/recharge_screen.dart';
 
 Future<bool> requestLocationPermissions() async {
   var status = await Permission.location.status;
@@ -273,6 +274,7 @@ class MyApp extends StatelessWidget {
           return DropScreen(key: UniqueKey());
         },
         '/booking-detail': (context) => const BookingDetailScreen(),
+        '/plans': (context) => const RechargeScreen(),
       },
     );
   }
