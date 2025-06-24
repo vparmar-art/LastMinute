@@ -1,0 +1,14 @@
+.env/
+*.pyc
+*.pyo
+__pycache__/
+*.db
+*.log
+.envrc
+*.DS_Store
+*.sqlite3
+*.egg-info/
+.vscode/
+.idea/
+node_modules/
+frontend/
