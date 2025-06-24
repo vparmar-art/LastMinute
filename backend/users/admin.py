@@ -2,6 +2,7 @@ from django.contrib import admin
 from users.models.customer import Customer, CustomerOTP
 from users.models.partner import Partner, PartnerOTP
 from users.models.token import Token
+from users.models.seller import Seller
 from django.contrib.gis.admin import GISModelAdmin
 
 @admin.register(Customer)
@@ -47,3 +48,9 @@ class TokenAdmin(admin.ModelAdmin):
     list_display = ('customer', 'partner', 'key', 'created_at')  # Display the relevant fields
     search_fields = ('customer__phone_number', 'partner__phone_number', 'key')  # Enable search for phone numbers and token key
     list_filter = ('created_at',)  # Allow filtering by creation date
+
+@admin.register(Seller)
+class SellerAdmin(admin.ModelAdmin):
+    list_display = ('id', 'merchant_name', 'phone_number', 'created_at')
+    search_fields = ('merchant_name', 'phone_number')
+    list_filter = ('created_at',)

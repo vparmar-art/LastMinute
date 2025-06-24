@@ -27,6 +27,7 @@ urlpatterns = [
     path('api/vehicles/', include('vehicles.urls')),
     path('api/bookings/', include('bookings.urls')),
     path('api/wallet/', include('wallet.urls')),
+    path('api/ecom/', include('marketplace.urls')),
 ]
 
 if settings.DEBUG:

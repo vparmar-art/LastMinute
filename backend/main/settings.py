@@ -107,6 +107,7 @@ INSTALLED_APPS = [
     'vehicles',
     'bookings',
     'wallet',
+    'marketplace',
     'storages'
 ]
 
