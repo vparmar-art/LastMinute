@@ -251,6 +251,16 @@ def validate_drop_otp(request):
     if booking.drop_otp == input_otp:
         booking.status = 'completed'
         booking.save()
+
+        # Reduce rides_remaining from PartnerWallet
+        try:
+            partner_wallet = booking.partner.wallet
+            if partner_wallet.rides_remaining > 0:
+                partner_wallet.rides_remaining -= 1
+                partner_wallet.save()
+        except Exception as e:
+            print(f"⚠️ Error updating partner wallet: {e}")
+
         return Response({
             'success': 'Drop OTP validated successfully',
             'message': f'Drop complete for booking {booking.id}'

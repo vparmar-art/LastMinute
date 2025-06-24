@@ -15,8 +15,6 @@ class PackageDetailsScreen extends StatefulWidget {
 class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _weightController = TextEditingController();
-  final TextEditingController _dimensionsController = TextEditingController();
   final TextEditingController _instructionsController = TextEditingController();
 
   bool _isLoading = false;
@@ -48,33 +46,45 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
-                    controller: _weightController,
-                    decoration: const InputDecoration(
-                      labelText: 'Weight (kg)',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) =>
-                        value == null || value.isEmpty ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _dimensionsController,
-                    decoration: const InputDecoration(
-                      labelText: 'Dimensions (L x W x H in cm)',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) =>
-                        value == null || value.isEmpty ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
                     controller: _instructionsController,
                     decoration: const InputDecoration(
                       labelText: 'Delivery Instructions (optional)',
                       border: OutlineInputBorder(),
                     ),
                     maxLines: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  Card(
+                    margin: const EdgeInsets.only(bottom: 20),
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('From: ${widget.bookingData.pickupAddress}', style: const TextStyle(fontSize: 16)),
+                          const SizedBox(height: 6),
+                          Text('To: ${widget.bookingData.dropAddress}', style: const TextStyle(fontSize: 16)),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Vehicle: ${widget.bookingData.selectedVehicleType != null
+                                ? widget.bookingData.selectedVehicleType!
+                                    .replaceAll('_', ' ')
+                                    .split(' ')
+                                    .map((word) => word[0].toUpperCase() + word.substring(1))
+                                    .join(' ')
+                                : '-'}',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          const SizedBox(height: 6),
+                          Text('Capacity: ${widget.bookingData.capacityKg} kg', style: const TextStyle(fontSize: 16)),
+                          const SizedBox(height: 12),
+                          Text('Distance: ${widget.bookingData.distanceKm} km', style: const TextStyle(fontSize: 16)),
+                          const SizedBox(height: 6),
+                          Text('Fare: ₹${widget.bookingData.totalFare}', style: const TextStyle(fontSize: 16)),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -93,13 +103,11 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                     final prefs = await SharedPreferences.getInstance();
                     final customer_id = prefs.getInt('customer');
                     widget.bookingData.description = _descriptionController.text;
-                    widget.bookingData.weight = _weightController.text;
-                    widget.bookingData.dimensions = _dimensionsController.text;
                     widget.bookingData.instructions = _instructionsController.text;
                     widget.bookingData.distanceKm = widget.bookingData.distanceKm;
                     widget.bookingData.customer = customer_id?.toString();
                     print('📦 Booking data: ${jsonEncode(widget.bookingData.toJson())}');
-                    final uri = Uri.parse('http://192.168.0.100:8000/api/bookings/start/');
+                    final uri = Uri.parse('http://192.168.0.101:8000/api/bookings/start/');
 
                     final response = await http.post(
                       uri,

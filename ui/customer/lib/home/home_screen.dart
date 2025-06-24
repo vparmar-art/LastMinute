@@ -21,6 +21,7 @@ class BookingData {
   double? distanceKm;
   String? customer;
   int? totalFare;
+  int? capacityKg;
 
   Map<String, dynamic> toJson() {
     return {
@@ -39,7 +40,9 @@ class BookingData {
       'instructions': instructions,
       'distance_km': distanceKm,
       'customer': customer,
-      'totalFare': totalFare
+      'totalFare': totalFare,
+      'capacityKg': capacityKg
+
     };
   }
 }

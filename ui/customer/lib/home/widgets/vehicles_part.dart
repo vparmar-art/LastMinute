@@ -59,7 +59,7 @@ class _VehiclesPartState extends State<VehiclesPart> {
 
   Future<void> fetchVehicleTypes() async {
     final response = await http.get(
-      Uri.parse('http://192.168.0.100:8000/api/vehicles/types/'),
+      Uri.parse('http://192.168.0.101:8000/api/vehicles/types/'),
     );
 
     if (response.statusCode == 200) {
@@ -102,7 +102,7 @@ class _VehiclesPartState extends State<VehiclesPart> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const LinearProgressIndicator(minHeight: 3);
     }
 
     return SingleChildScrollView(
@@ -124,6 +124,7 @@ class _VehiclesPartState extends State<VehiclesPart> {
                   setState(() {
                     selectedIndex = index;
                     widget.bookingData.selectedVehicleType = vehicle.name;
+                    widget.bookingData.capacityKg = vehicle.capacity;
                     widget.bookingData.totalFare = (vehicle.baseFare + vehicle.farePerKm * distanceKm).round();
                   });
                 },

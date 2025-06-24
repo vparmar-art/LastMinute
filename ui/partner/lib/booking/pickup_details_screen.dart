@@ -113,7 +113,7 @@ class _PickupScreenState extends State<PickupScreen> {
                 print('✅ OTP entered: $enteredOtp');
                 try {
                   final response = await http.post(
-                    Uri.parse('http://192.168.0.100:8000/api/bookings/validate-pickup-otp/'),
+                    Uri.parse('http://192.168.0.101:8000/api/bookings/validate-pickup-otp/'),
                     headers: {'Content-Type': 'application/json'},
                     body: jsonEncode({
                       'booking_id': pickupBookingId,
