@@ -19,17 +19,14 @@ ENV USE_S3_STATICFILES=1
 # Set working directory
 WORKDIR /app
 
-
-ARG GIT_TOKEN
-ARG GIT_REPO=github.com/vparmar-art/LastMinute.git
-
-RUN git clone --depth 1 https://$GIT_TOKEN@$GIT_REPO /app-src
-RUN cp -r /app-src/backend/* /app/
-RUN rm -rf /app-src
+# Securely copy code from GitHub Actions (external clone) into image
+COPY ./backend /app
 
 # Install Python dependencies
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
+
+# Collect static files for S3
 RUN python manage.py collectstatic --noinput
 
 # Run Django app
