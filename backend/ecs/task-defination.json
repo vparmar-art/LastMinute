@@ -1,0 +1,21 @@
+{
+  "family": "last-minute-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::054037119505:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "last-minute-backend",
+      "image": "REPLACE_ME",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true
+    }
+  ]
+}
