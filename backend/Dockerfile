@@ -20,7 +20,7 @@ ENV USE_S3_STATICFILES=1
 WORKDIR /app
 
 # Securely copy code from GitHub Actions (external clone) into image
-COPY ./backend /app
+COPY . /app
 
 # Install Python dependencies
 RUN pip install --upgrade pip

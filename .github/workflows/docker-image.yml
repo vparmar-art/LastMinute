@@ -14,8 +14,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout current repo (if needed)
         uses: actions/checkout@v4
+
+      - name: Clone private backend repo
+        run: |
+          git clone https://x-access-token:${{ secrets.GIT_TOKEN }}@github.com/vparmar-art/LastMinute.git repo
+          cp -r repo/backend ./backend
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
