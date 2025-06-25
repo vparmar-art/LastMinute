@@ -21,6 +21,7 @@ WORKDIR /app
 
 ARG GIT_TOKEN
 ARG GIT_REPO=github.com/vparmar-art/LastMinute.git
+ARG USE_S3_STATICFILES=1
 
 RUN git clone --depth 1 https://$GIT_TOKEN@$GIT_REPO /app-src
 RUN cp -r /app-src/backend/* /app/
