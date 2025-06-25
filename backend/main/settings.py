@@ -36,49 +36,49 @@ ALLOWED_HOSTS = [
 
 IS_LAMBDA = 'AWS_LAMBDA_FUNCTION_NAME' in os.environ
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-        **({
-            'file': {
-                'level': 'DEBUG',
-                'class': 'logging.FileHandler',
-                'filename': os.path.join(
-                    '/Users/vikash/personal/LastMinute/backend/app.log' if not IS_LAMBDA else '/tmp/app.log'
-                ),
-                'formatter': 'verbose',
-            }
-        } if not IS_LAMBDA or os.access('/tmp', os.W_OK) else {})
-    },
-    'loggers': {
-        'django': {
-            'handlers': [],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'users': {
-            'handlers': ['console'] + (['file'] if not IS_LAMBDA or os.access('/tmp', os.W_OK) else []),
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-    },
-}
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'formatters': {
+#         'verbose': {
+#             'format': '{levelname} {asctime} {module} {message}',
+#             'style': '{',
+#         },
+#         'simple': {
+#             'format': '{levelname} {message}',
+#             'style': '{',
+#         },
+#     },
+#     'handlers': {
+#         'console': {
+#             'level': 'INFO',
+#             'class': 'logging.StreamHandler',
+#             'formatter': 'simple',
+#         },
+#         **({
+#             'file': {
+#                 'level': 'DEBUG',
+#                 'class': 'logging.FileHandler',
+#                 'filename': os.path.join(
+#                     '/Users/vikash/personal/LastMinute/backend/app.log' if not IS_LAMBDA else '/tmp/app.log'
+#                 ),
+#                 'formatter': 'verbose',
+#             }
+#         } if not IS_LAMBDA or os.access('/tmp', os.W_OK) else {})
+#     },
+#     'loggers': {
+#         'django': {
+#             'handlers': [],
+#             'level': 'DEBUG',
+#             'propagate': False,
+#         },
+#         'users': {
+#             'handlers': ['console'] + (['file'] if not IS_LAMBDA or os.access('/tmp', os.W_OK) else []),
+#             'level': 'DEBUG',
+#             'propagate': True,
+#         },
+#     },
+# }
 
 CACHES = {
     'default': {
