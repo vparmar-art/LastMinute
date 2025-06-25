@@ -43,7 +43,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   }
 
   Future<void> fetchBookingDetails(int id) async {
-    final url = Uri.parse('http://192.168.0.101:8000/api/bookings/$id/');
+    final url = Uri.parse('http://prod-lb-1625394403.us-east-1.elb.amazonaws.com/api/bookings/$id/');
     print('Fetching booking details for ID: $id from $url');
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -81,7 +81,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     });
 
     try {
-      final url = Uri.parse('http://192.168.0.101:8000/api/bookings/$bookingId/status/');
+      final url = Uri.parse('http://prod-lb-1625394403.us-east-1.elb.amazonaws.com/api/bookings/$bookingId/status/');
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
       final response = await http.post(

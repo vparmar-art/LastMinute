@@ -59,7 +59,7 @@ class _VehiclesPartState extends State<VehiclesPart> {
 
   Future<void> fetchVehicleTypes() async {
     final response = await http.get(
-      Uri.parse('http://192.168.0.101:8000/api/vehicles/types/'),
+      Uri.parse('http://prod-lb-1625394403.us-east-1.elb.amazonaws.com/api/vehicles/types/'),
     );
 
     if (response.statusCode == 200) {

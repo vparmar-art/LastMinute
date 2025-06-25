@@ -21,7 +21,7 @@ class _RechargeScreenState extends State<RechargeScreen> {
   }
 
   Future<void> _fetchPlans() async {
-    final response = await http.get(Uri.parse('http://192.168.0.101:8000/api/wallet/plans/'));
+    final response = await http.get(Uri.parse('http://prod-lb-1625394403.us-east-1.elb.amazonaws.com/api/wallet/plans/'));
     print('📥 Plan API response: ${response.body}');
     if (response.statusCode == 200) {
       setState(() {
@@ -56,7 +56,7 @@ class _RechargeScreenState extends State<RechargeScreen> {
     }
 
     final response = await http.post(
-      Uri.parse('http://192.168.0.101:8000/api/wallet/recharge/'),
+      Uri.parse('http://prod-lb-1625394403.us-east-1.elb.amazonaws.com/api/wallet/recharge/'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'partner_id': partnerId,
