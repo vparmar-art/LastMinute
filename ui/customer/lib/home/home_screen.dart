@@ -7,6 +7,7 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'api_service.dart';
 import 'widgets/vehicles_part.dart' show VehiclesPart, BookingData;
 import 'dart:async';
+import '../widgets/side_navigation.dart';
 
 class BookingData {
   String? pickupAddress;
@@ -394,21 +395,28 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: _isConfirmed
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  setState(() {
-                    _isConfirmed = false;
-                    _polylines.clear();
-                  });
-                },
-              )
-            : null,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         title: Text('Home', style: GoogleFonts.manrope(fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
-        ],
+      ),
+      drawer: Drawer(
+        child: SideNavigation(
+          customerName: "Vikash",
+          onItemSelected: (key) {
+            Navigator.pop(context); // close the drawer
+            if (key == 'support') {
+              // TODO: Navigate to support screen
+            } else if (key == 'terms') {
+              // TODO: Navigate to terms screen
+            } else if (key == 'logout') {
+              _logout();
+            }
+          },
+        ),
       ),
       body: Stack(
         children: [

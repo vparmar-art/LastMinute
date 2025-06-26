@@ -69,7 +69,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Future<void> _fetchBooking() async {
     print('🔄 Fetching booking status for ID: $bookingId');
-    final url = Uri.parse('http://prod-lb-1625394403.us-east-1.elb.amazonaws.com/api/bookings/$bookingId/');
+    final url = Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/bookings/$bookingId/');
     try {
       final response = await http.get(url, headers: {
         'Content-Type': 'application/json',
@@ -138,7 +138,7 @@ class _BookingScreenState extends State<BookingScreen> {
   void _startLocationUpdates(int partnerId) {
     _locationUpdateTimer?.cancel(); // Cancel existing timer if any
     _locationUpdateTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
-      final url = Uri.parse('http://prod-lb-1625394403.us-east-1.elb.amazonaws.com/api/users/partner/location/?partner_id=$partnerId');
+      final url = Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/users/partner/location/?partner_id=$partnerId');
       try {
         final response = await http.get(url, headers: {
           'Content-Type': 'application/json',
@@ -166,7 +166,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _fetchPartnerProfile(int partnerId) async {
-    final url = Uri.parse('http://prod-lb-1625394403.us-east-1.elb.amazonaws.com/api/users/partner/profile/?id=$partnerId');
+    final url = Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/users/partner/profile/?id=$partnerId');
     try {
       final response = await http.get(url, headers: {
         'Content-Type': 'application/json',
