@@ -37,22 +37,6 @@ class CustomerSendOTPView(APIView):
 
         send_sms(f"+91{phone_number}", f"OTP generated for {phone_number} - {code}")
 
-        # Format phone number for WhatsApp (E.164 with 'whatsapp:' prefix)
-        # whatsapp_number = f'whatsapp:+91{phone_number}'
-
-        # try:
-        #     client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-        #     message = client.messages.create(
-        #         from_=settings.TWILIO_WHATSAPP_NUMBER,
-        #         to=whatsapp_number,
-        #         content_sid=settings.TWILIO_WHATSAPP_TEMPLATE_SID,
-        #         content_variables=f'{{"1":"{code}"}}'
-        #     )
-        #     logger.info(f"WhatsApp OTP sent to {phone_number}, SID: {message.sid}")
-        # except Exception as e:
-        #     logger.error(f"Failed to send WhatsApp OTP to {phone_number}: {str(e)}")
-        #     return Response({"error": "Failed to send OTP"}, status=500)
-
         return Response({"message": "OTP sent successfully"})
 
 

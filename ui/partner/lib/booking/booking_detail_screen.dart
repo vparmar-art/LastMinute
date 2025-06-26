@@ -155,10 +155,14 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             height: 60,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 colors: [Colors.green, Colors.red],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
+                stops: [
+                  0.5 + (_decisionDrag / (_decisionMaxDrag * 2)),
+                  0.5 + (_decisionDrag / (_decisionMaxDrag * 2)) + 0.001
+                ],
               ),
             ),
             child: Stack(
@@ -279,6 +283,16 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                                 child: ListTile(
                                   title: const Text('Dimensions'),
                                   subtitle: Text(booking?['dimensions']),
+                                ),
+                              ),
+                            if (booking?['description'] != null)
+                              Card(
+                                margin: const EdgeInsets.symmetric(vertical: 8),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                child: ListTile(
+                                  title: const Text('Package Details'),
+                                  subtitle: Text(booking?['description']),
                                 ),
                               ),
                             if (booking?['instructions'] != null)
