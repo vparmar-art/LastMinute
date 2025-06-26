@@ -16,3 +16,15 @@ def register_device_with_sns(fcm_token):
         Token=fcm_token
     )
     return response['EndpointArn']
+
+def send_sms(phone_number, message):
+    """
+    Sends an SMS message using AWS SNS.
+    - phone_number: recipient number in E.164 format (e.g., '+919876543210')
+    - message: the OTP or message text to send
+    """
+    response = sns.publish(
+        PhoneNumber=phone_number,
+        Message=message
+    )
+    return response

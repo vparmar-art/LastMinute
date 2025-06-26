@@ -54,7 +54,7 @@ class PartnerSendOTPView(APIView):
         )
         session_id = request.session.session_key or request.session.save() or request.session.session_key
 
-        otp = PartnerOTP.objects.create(
+        PartnerOTP.objects.create(
             partner=partner,
             code=code,
             session_id=session_id
