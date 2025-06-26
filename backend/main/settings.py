@@ -35,49 +35,43 @@ ALLOWED_HOSTS = [
 ]
 
 
-# LOGGING = {
-#     'version': 1,
-#     'disable_existing_loggers': False,
-#     'formatters': {
-#         'verbose': {
-#             'format': '{levelname} {asctime} {module} {message}',
-#             'style': '{',
-#         },
-#         'simple': {
-#             'format': '{levelname} {message}',
-#             'style': '{',
-#         },
-#     },
-#     'handlers': {
-#         'console': {
-#             'level': 'INFO',
-#             'class': 'logging.StreamHandler',
-#             'formatter': 'simple',
-#         },
-#         **({
-#             'file': {
-#                 'level': 'DEBUG',
-#                 'class': 'logging.FileHandler',
-#                 'filename': os.path.join(
-#                     '/Users/vikash/personal/LastMinute/backend/app.log' if not IS_LAMBDA else '/tmp/app.log'
-#                 ),
-#                 'formatter': 'verbose',
-#             }
-#         } if not IS_LAMBDA or os.access('/tmp', os.W_OK) else {})
-#     },
-#     'loggers': {
-#         'django': {
-#             'handlers': [],
-#             'level': 'DEBUG',
-#             'propagate': False,
-#         },
-#         'users': {
-#             'handlers': ['console'] + (['file'] if not IS_LAMBDA or os.access('/tmp', os.W_OK) else []),
-#             'level': 'DEBUG',
-#             'propagate': True,
-#         },
-#     },
-# }
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'json': {
+            'format': '{"time": "{asctime}", "level": "{levelname}", "name": "{name}", "message": "{message}"}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {module}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',  # or 'json' if using log processing
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'users': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
 
 CACHES = {
     'default': {
@@ -206,11 +200,6 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-
-TWILIO_ACCOUNT_SID = 'AC1001ab987faf05c745493c910d4d5c3c'
-TWILIO_AUTH_TOKEN = 'f2aca05f15ed4f9a434a9208aebf7fee'
-TWILIO_WHATSAPP_NUMBER = 'whatsapp:+14155238886'
-TWILIO_WHATSAPP_TEMPLATE_SID = 'HX229f5a04fd0510ce1b071852155d3e75'
 
 USE_S3_STATICFILES = os.environ.get("USE_S3_STATICFILES") == "1"
 
