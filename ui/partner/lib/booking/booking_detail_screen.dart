@@ -43,7 +43,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   }
 
   Future<void> fetchBookingDetails(int id) async {
-    final url = Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/bookings/$id/');
+    final url = Uri.parse('http://192.168.0.105:8000/api/bookings/$id/');
     print('Fetching booking details for ID: $id from $url');
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -81,7 +81,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     });
 
     try {
-      final url = Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/bookings/$bookingId/status/');
+      final url = Uri.parse('http://192.168.0.105:8000/api/bookings/$bookingId/status/');
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
       final response = await http.post(
@@ -298,7 +298,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 child: ListTile(
                                   title: const Text('Instructions'),
-                                  subtitle: Text(booking?['instructions']),
+                                  subtitle: Text((booking?['instructions'] ?? '').trim().isEmpty ? 'None' : booking!['instructions']),
                                 ),
                               ),
                             if (booking?['distance_km'] != null)
@@ -318,7 +318,10 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 child: ListTile(
                                   title: const Text('Boxes'),
-                                  subtitle: Text('${booking?['boxes']}'),
+                                  subtitle: Text(
+                                    '${booking?['boxes']}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                               ),
                             if (booking?['helper_required'] != null)
@@ -328,7 +331,10 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 child: ListTile(
                                   title: const Text('Helper Required'),
-                                  subtitle: Text(booking?['helper_required'] == true ? 'Yes' : 'No'),
+                                  subtitle: Text(
+                                    booking?['helper_required'] == true ? 'Yes' : 'No',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                               ),
                             Card(

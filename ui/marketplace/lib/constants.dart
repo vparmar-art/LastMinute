@@ -1,2 +1,2 @@
-const String baseUrl = "http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/ecom";
+const String baseUrl = "http://192.168.0.105:8000/api/ecom";
 const String serverUrl = "http://prod-lb-1625394403.us-east-1.elb.amazonaws.com";

@@ -163,7 +163,7 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                     widget.bookingData.boxes = int.tryParse(_boxesController.text);
                     widget.bookingData.helper_required = _helperRequired;
                     print('📦 Booking data: ${jsonEncode(widget.bookingData.toJson())}');
-                    final uri = Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/bookings/start/');
+                    final uri = Uri.parse('http://192.168.0.105:8000/api/bookings/start/');
 
                     final response = await http.post(
                       uri,
