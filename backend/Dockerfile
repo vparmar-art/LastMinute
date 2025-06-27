@@ -30,4 +30,4 @@ RUN pip install -r requirements.txt
 RUN python manage.py collectstatic --noinput
 
 # Run Django app
-CMD ["gunicorn", "main.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "main.asgi:application"]
