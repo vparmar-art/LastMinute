@@ -1,15 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-
-// Add these imports
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/status.dart' as status;
+
 
 Future<void> initializeService() async {
   final service = FlutterBackgroundService();
@@ -52,39 +54,24 @@ void onStart(ServiceInstance service) async {
     service.stopSelf();
   });
 
-  
+  // Fetch the location before starting the Timer
+  final prefs = await SharedPreferences.getInstance();
+  final partnerId = prefs.getInt('partner_id');
+
+  final channel = WebSocketChannel.connect(
+    Uri.parse('ws://192.168.0.105:8000/ws/users/partner/$partnerId/location/'),
+  );
+
   Timer.periodic(const Duration(seconds: 15), (timer) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    if (token == null) return;
+    Position position = await Geolocator.getCurrentPosition();
+    print("📍 Periodic position: ${position.latitude}, ${position.longitude}");
 
-    try {
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      final response = await http.post(
-        Uri.parse('http://192.168.0.105:8000/api/users/partner/location/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'latitude': position.latitude,
-          'longitude': position.longitude,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        print('🔄 Background location updated successfully');
-      } else {
-        print('❌ Failed to update location: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('🚨 Error updating location: $e');
-    }
+    channel.sink.add(jsonEncode({
+      'lat': position.latitude,
+      'lng': position.longitude,
+    }));
+    print('📡 Location sent via WebSocket');
   });
-  
 }
 
 class HomeScreen extends StatefulWidget {
@@ -95,6 +82,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  WebSocketChannel? _channel;
   bool _isLive = false;
   String _partnerName = '';
   double _dragPosition = 0.0;
@@ -103,7 +91,6 @@ class _HomeScreenState extends State<HomeScreen> {
   double _totalEarnings = 0.0;
   bool _isLoadingProfile = true;
   bool _isSliderInitialized = false;
-
   int _ridesRemaining = 0;
   double _walletBalance = 0.0;
   String? _walletValidUntil;
@@ -118,13 +105,23 @@ class _HomeScreenState extends State<HomeScreen> {
     _fetchTotalBookings();
   }
 
-  void _startBackgroundLocationUpdates() {
+  void _startBackgroundLocationUpdates() async {
     _checkAndRequestPermissions();
     initializeService();
+
+    final prefs = await SharedPreferences.getInstance();
+    final partnerId = prefs.getInt('partner_id');
+    if (partnerId != null) {
+      _channel = WebSocketChannel.connect(
+        Uri.parse('ws://192.168.0.105:8000/ws/users/partner/$partnerId/location/'),
+      );
+    }
+
     print("🚀 Background location service started");
   }
 
   void _stopBackgroundLocationUpdates() {
+    _channel?.sink.close();
     FlutterBackgroundService().invoke("stopService");
     print("🛑 Background location service stopped");
   }

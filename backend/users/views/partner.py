@@ -19,6 +19,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from users.serializers import PartnerSerializer  # ensure this import exists
 from django.utils import timezone
 from users.sns import send_sms
+from users.utils import update_partner_location
 
 logger = logging.getLogger(__name__)
 
@@ -185,13 +186,10 @@ class PartnerLocationView(APIView):
 
         try:
             token = Token.objects.get(key=token_key)
-            partner = token.partner
         except Token.DoesNotExist:
             return Response({'error': 'Invalid token'}, status=401)
 
-        if not partner.is_live:
-            print('Partner is not live; skipping location update')
-            return Response({'message': 'Partner is not live; location not updated'})
+        partner_id = token.partner.id
 
         latitude = request.data.get('latitude')
         longitude = request.data.get('longitude')
@@ -200,20 +198,14 @@ class PartnerLocationView(APIView):
         if latitude is None or longitude is None:
             return Response({'error': 'Latitude and longitude are required'}, status=400)
 
-        new_point = Point(float(longitude), float(latitude))
+        result = update_partner_location(partner_id, latitude, longitude)
 
-        if partner.current_location:
-            old_point = partner.current_location
-            distance = new_point.distance(old_point)
-            print(f'Old location: {old_point}, New location: {new_point}, Distance: {distance}')
-            if distance < 0.0001:
-                print('Coordinates unchanged; no update needed')
-                return Response({'message': 'Coordinates unchanged; no update needed'})
+        if 'error' in result:
+            return Response({'error': result['error']}, status=404)
+        if result.get('skipped'):
+            return Response({'message': result['reason']})
 
-        partner.current_location = new_point
-        partner.save()
         print('Location updated successfully')
-
         return Response({'message': 'Location updated successfully'})
 
     def get(self, request):
