@@ -444,7 +444,7 @@ class _HomeScreenState extends State<HomeScreen> {
             polylines: Set<Polyline>.of(_polylines),
           ),
           Positioned(
-            top: 0,
+            top: 4,
             left: 0,
             right: 0,
             child: _buildCombinedSearchBox(),
