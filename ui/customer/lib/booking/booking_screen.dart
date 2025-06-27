@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
+import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -136,32 +137,34 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _startLocationUpdates(int partnerId) {
-    _locationUpdateTimer?.cancel(); // Cancel existing timer if any
-    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
-      final url = Uri.parse('http://192.168.0.105:8000/api/users/partner/location/?partner_id=$partnerId');
+    final wsUrl = Uri.parse('ws://192.168.0.105:8000/ws/users/partner/$partnerId/location/');
+    final channel = WebSocketChannel.connect(wsUrl);
+
+    channel.stream.listen((message) {
       try {
-        final response = await http.get(url, headers: {
-          'Content-Type': 'application/json',
+        final data = jsonDecode(message);
+        final lat = data['lat'];
+        final lng = data['lng'];
+        print('📡 WebSocket location received: lat=$lat, lng=$lng');
+        setState(() {
+          _lat = lat;
+          _lng = lng;
         });
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          print('📍 Partner location fetched: lat=${data['latitude']}, lng=${data['longitude']}');
-          setState(() {
-            _lat = data['latitude'];
-            _lng = data['longitude'];
-          });
-          if (!_isArriving && _dropLat != null && _dropLng != null) {
-            await _drawDropRoute();
-          }
-          if (_isArriving && _lat != null && _lng != null && _pickupLat != null && _pickupLng != null) {
-            await _drawRoute();
-          }
-        } else {
-          print('Location API error: ${response.statusCode}');
+
+        if (!_isArriving && _dropLat != null && _dropLng != null) {
+          _drawDropRoute();
+        }
+
+        if (_isArriving && _lat != null && _lng != null && _pickupLat != null && _pickupLng != null) {
+          _drawRoute();
         }
       } catch (e) {
-        print('Location fetch error: $e');
+        print('❌ Error decoding WebSocket message: $e');
       }
+    }, onError: (error) {
+      print('❌ WebSocket error: $error');
+    }, onDone: () {
+      print('🔌 WebSocket connection closed');
     });
   }
 
