@@ -17,6 +17,8 @@ class Booking(models.Model):
     description = models.TextField(blank=True, null=True)
     weight = models.CharField(max_length=50, blank=True, null=True)
     dimensions = models.CharField(max_length=100, blank=True, null=True)
+    boxes = models.IntegerField(blank=True, null=True)
+    helper_required = models.BooleanField(default=False)
     instructions = models.TextField(blank=True, null=True)
     distance_km = models.FloatField(blank=True, null=True)
     status = models.CharField(

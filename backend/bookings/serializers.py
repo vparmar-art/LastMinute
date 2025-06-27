@@ -28,5 +28,7 @@ class BookingSerializer(GeoFeatureModelSerializer):
             'instructions',
             'distance_km',
             'pickup_otp',
-            'drop_otp'
+            'drop_otp',
+            'boxes',
+            'helper_required'
         ]

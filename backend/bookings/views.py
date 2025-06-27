@@ -9,6 +9,7 @@ from users.models import Customer, Partner
 from .serializers import BookingSerializer
 from .sns import send_push_notification
 from users.models.token import Token
+import random
 
 # Serializer for Booking
 class BookingSerializer(serializers.ModelSerializer):
@@ -50,6 +51,8 @@ def booking_list(request):
         booking.dimensions = request.data.get('dimensions')
         booking.instructions = request.data.get('instructions')
         booking.distance_km = request.data.get('distance_km')
+        booking.boxes = request.data.get('boxes')
+        booking.helper_required = request.data.get('helper_required', False)
         booking.save()
         return Response(BookingSerializer(booking).data, status=status.HTTP_201_CREATED)
 
@@ -133,7 +136,6 @@ def start_booking(request):
         customer=customer,
         pickup_location=request.data['pickup_address'],
         drop_location=request.data['drop_address'],
-        # amount=request.data['amount'],
         status='created',
         amount=request.data['totalFare']
     )
@@ -142,8 +144,9 @@ def start_booking(request):
     booking.dimensions = request.data.get('dimensions')
     booking.instructions = request.data.get('instructions')
     booking.distance_km = request.data.get('distance_km')
+    booking.boxes = request.data.get('boxes')
+    booking.helper_required = request.data.get('helper_required', False)
 
-    import random
     booking.pickup_otp = str(random.randint(1000, 9999))
     booking.drop_otp = str(random.randint(1000, 9999))
 
