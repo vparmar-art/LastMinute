@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../home/home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 
 class PackageDetailsScreen extends StatefulWidget {
   final BookingData bookingData;
@@ -16,6 +17,8 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _instructionsController = TextEditingController();
+  final TextEditingController _boxesController = TextEditingController(text: '0');
+  bool _helperRequired = false;
 
   bool _isLoading = false;
 
@@ -52,6 +55,57 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                       border: OutlineInputBorder(),
                     ),
                     maxLines: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _boxesController,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          decoration: InputDecoration(
+                            labelText: 'Boxes',
+                            border: OutlineInputBorder(),
+                            suffixIcon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.remove),
+                                  onPressed: () {
+                                    int current = int.tryParse(_boxesController.text) ?? 0;
+                                    if (current > 0) {
+                                      _boxesController.text = (current - 1).toString();
+                                    }
+                                  },
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.add),
+                                  onPressed: () {
+                                    int current = int.tryParse(_boxesController.text) ?? 0;
+                                    _boxesController.text = (current + 1).toString();
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        children: [
+                          const Text("Helper"),
+                          Checkbox(
+                            value: _helperRequired,
+                            onChanged: (val) {
+                              setState(() {
+                                _helperRequired = val ?? false;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   Card(
@@ -99,13 +153,15 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                 FocusScope.of(context).unfocus(); // Close keyboard
                 if (_formKey.currentState!.validate()) {
                   setState(() => _isLoading = true);
-                  try {
+                  try { 
                     final prefs = await SharedPreferences.getInstance();
                     final customer_id = prefs.getInt('customer');
                     widget.bookingData.description = _descriptionController.text;
                     widget.bookingData.instructions = _instructionsController.text;
                     widget.bookingData.distanceKm = widget.bookingData.distanceKm;
                     widget.bookingData.customer = customer_id?.toString();
+                    widget.bookingData.boxes = int.tryParse(_boxesController.text);
+                    widget.bookingData.helper_required = _helperRequired;
                     print('📦 Booking data: ${jsonEncode(widget.bookingData.toJson())}');
                     final uri = Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/bookings/start/');
 

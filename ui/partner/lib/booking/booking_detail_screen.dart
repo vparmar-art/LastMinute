@@ -155,14 +155,10 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             height: 60,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
+              gradient: const LinearGradient(
                 colors: [Colors.green, Colors.red],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
-                stops: [
-                  0.5 + (_decisionDrag / (_decisionMaxDrag * 2)),
-                  0.5 + (_decisionDrag / (_decisionMaxDrag * 2)) + 0.001
-                ],
               ),
             ),
             child: Stack(
@@ -313,6 +309,26 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                                 child: ListTile(
                                   title: const Text('Distance'),
                                   subtitle: Text('${booking?['distance_km']} km'),
+                                ),
+                              ),
+                            if (booking?['boxes'] != null)
+                              Card(
+                                margin: const EdgeInsets.symmetric(vertical: 8),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                child: ListTile(
+                                  title: const Text('Boxes'),
+                                  subtitle: Text('${booking?['boxes']}'),
+                                ),
+                              ),
+                            if (booking?['helper_required'] != null)
+                              Card(
+                                margin: const EdgeInsets.symmetric(vertical: 8),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                child: ListTile(
+                                  title: const Text('Helper Required'),
+                                  subtitle: Text(booking?['helper_required'] == true ? 'Yes' : 'No'),
                                 ),
                               ),
                             Card(

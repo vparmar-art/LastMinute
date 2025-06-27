@@ -11,16 +11,6 @@ from .sns import send_push_notification
 from users.models.token import Token
 import random
 
-# Serializer for Booking
-class BookingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Booking
-        fields = ['id', 'customer', 'partner', 'pickup_location', 
-                  'drop_location', 'pickup_latlng', 'drop_latlng',
-                  'pickup_time', 'drop_time', 'status', 'amount', 
-                  'description', 'weight', 'dimensions', 'instructions', 'distance_km',
-                  'created_at', 'modified_at', 'distance_km', 'pickup_otp', 'drop_otp']
-
 @api_view(['GET', 'POST'])
 def booking_list(request):
     """
