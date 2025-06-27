@@ -30,5 +30,9 @@ class BookingSerializer(GeoFeatureModelSerializer):
             'pickup_otp',
             'drop_otp',
             'boxes',
-            'helper_required'
+            'helper_required',
+            'pickup_location',
+            'drop_location',
+            'amount',
+            'modified_at'
         ]
