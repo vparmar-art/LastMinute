@@ -70,7 +70,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Future<void> _fetchBooking() async {
     print('🔄 Fetching booking status for ID: $bookingId');
-    final url = Uri.parse('http://192.168.0.105:8000/api/bookings/$bookingId/');
+    final url = Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/bookings/$bookingId/');
     try {
       final response = await http.get(url, headers: {
         'Content-Type': 'application/json',
@@ -79,7 +79,6 @@ class _BookingScreenState extends State<BookingScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final pickupOtp = data['pickup_otp'];
-        print('🔐 Pickup OTP: $pickupOtp');
         _pickupOtp = data['pickup_otp']?.toString();
         _dropOtp = data['drop_otp']?.toString();
         if (data['status'] == 'arriving' && !_isArriving) {
@@ -137,7 +136,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _startLocationUpdates(int partnerId) {
-    final wsUrl = Uri.parse('ws://192.168.0.105:8000/ws/users/partner/$partnerId/location/');
+    final wsUrl = Uri.parse('ws://prod-lb-1092214212.us-east-1.elb.amazonaws.com/ws/users/partner/$partnerId/location/');
     final channel = WebSocketChannel.connect(wsUrl);
 
     channel.stream.listen((message) {
@@ -169,7 +168,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _fetchPartnerProfile(int partnerId) async {
-    final url = Uri.parse('http://192.168.0.105:8000/api/users/partner/profile/?id=$partnerId');
+    final url = Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/users/partner/profile/?id=$partnerId');
     try {
       final response = await http.get(url, headers: {
         'Content-Type': 'application/json',

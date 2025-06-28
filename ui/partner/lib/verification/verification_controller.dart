@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'verification_screen.dart';
 
-const String baseUrl = 'http://192.168.0.105:8000/api';
+const String baseUrl = 'http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api';
 
 class VerificationData {
   // Step 1 - Vehicle Owner Info

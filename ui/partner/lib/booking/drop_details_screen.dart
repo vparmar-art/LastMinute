@@ -82,7 +82,7 @@ class _DropScreenState extends State<DropScreen> {
                 print('✅ Drop OTP entered: $enteredOtp');
                 try {
                   final response = await http.post(
-                    Uri.parse('http://192.168.0.105:8000/api/bookings/validate-drop-otp/'),
+                    Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/bookings/validate-drop-otp/'),
                     headers: {'Content-Type': 'application/json'},
                     body: jsonEncode({
                       'booking_id': bookingId,
