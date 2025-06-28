@@ -11,6 +11,7 @@ import 'package:flutter_background_service_android/flutter_background_service_an
 import 'package:geolocator/geolocator.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
+import '../../constants.dart';
 
 
 Future<void> initializeService() async {
@@ -59,7 +60,7 @@ void onStart(ServiceInstance service) async {
   final partnerId = prefs.getInt('partner_id');
 
   final channel = WebSocketChannel.connect(
-    Uri.parse('ws://prod-lb-1092214212.us-east-1.elb.amazonaws.com/ws/users/partner/$partnerId/location/'),
+    Uri.parse('$wsBaseUrl/users/partner/$partnerId/location/'),
   );
 
   Timer.periodic(const Duration(seconds: 15), (timer) async {
@@ -113,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final partnerId = prefs.getInt('partner_id');
     if (partnerId != null) {
       _channel = WebSocketChannel.connect(
-        Uri.parse('ws://prod-lb-1092214212.us-east-1.elb.amazonaws.com/ws/users/partner/$partnerId/location/'),
+        Uri.parse('$wsBaseUrl/users/partner/$partnerId/location/'),
       );
     }
 
@@ -356,7 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return false;
 
     final response = await http.put(
-      Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/users/partner/profile/'),
+      Uri.parse('$apiBaseUrl/users/partner/profile/'),
       headers: {
         'Authorization': 'Token $token',
         'Content-Type': 'application/json',
@@ -382,7 +383,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/users/partner/profile/'),
+      Uri.parse('$apiBaseUrl/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
@@ -397,7 +398,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final partnerId = data['id'];
         await prefs.setInt('partner_id', partnerId);
         final walletResponse = await http.get(
-          Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/wallet/partner-wallet/$partnerId/'),
+          Uri.parse('$apiBaseUrl/wallet/partner-wallet/$partnerId/'),
           headers: {'Authorization': 'Token $token'},
         );
 
@@ -433,7 +434,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/bookings/list/'),
+      Uri.parse('$apiBaseUrl/bookings/list/'),
       headers: {'Authorization': 'Token $token'},
     );
 

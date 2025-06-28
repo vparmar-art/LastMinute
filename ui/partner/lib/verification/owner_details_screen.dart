@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import '../../constants.dart';
 
 class OwnerDetailsScreen extends StatefulWidget {
   const OwnerDetailsScreen({super.key});
@@ -31,7 +32,7 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/vehicles/types/'),
+      Uri.parse('$apiBaseUrl/vehicles/types/'),
       headers: {'Authorization': 'Token $token'},
     );
 
@@ -52,7 +53,7 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/users/partner/profile/'),
+      Uri.parse('$apiBaseUrl/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
@@ -80,7 +81,7 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
     if (token == null) return;
 
     final response = await http.put(
-      Uri.parse('http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/users/partner/profile/'),
+      Uri.parse('$apiBaseUrl/users/partner/profile/'),
       headers: {
         'Authorization': 'Token $token',
         'Content-Type': 'application/json',  // Ensure this header is set

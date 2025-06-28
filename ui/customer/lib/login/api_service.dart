@@ -1,8 +1,9 @@
+import '../constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/users/customer';
+  static const String baseUrl = '$apiBaseUrl/users/customer';
 
   Future<String> sayHello() async {
     final response = await http.get(Uri.parse('$baseUrl/hello/'));

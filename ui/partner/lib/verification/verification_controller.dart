@@ -3,8 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'verification_screen.dart';
-
-const String baseUrl = 'http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api';
+import '../constants.dart';
 
 class VerificationData {
   // Step 1 - Vehicle Owner Info
@@ -44,7 +43,7 @@ class VerificationData {
   // Method to load data from API
   Future<void> fetchVerificationData(String token) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/users/partner/profile/'),
+      Uri.parse('$apiBaseUrl/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
