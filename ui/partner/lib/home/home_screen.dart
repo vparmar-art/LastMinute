@@ -432,9 +432,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     if (token == null) return;
+    final partnerId = prefs.getInt('partner_id');
+    if (partnerId == null) return;
 
     final response = await http.get(
-      Uri.parse('$apiBaseUrl/bookings/list/'),
+      Uri.parse('$apiBaseUrl/bookings/list/?partner=$partnerId'),
       headers: {'Authorization': 'Token $token'},
     );
 

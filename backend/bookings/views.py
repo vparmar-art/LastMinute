@@ -17,7 +17,15 @@ def booking_list(request):
     List all bookings or create a new booking.
     """
     if request.method == 'GET':
+        customer_id = request.query_params.get('customer')
+        partner_id = request.query_params.get('partner')
+
         bookings = Booking.objects.all()
+        if customer_id:
+            bookings = bookings.filter(customer__id=customer_id)
+        if partner_id:
+            bookings = bookings.filter(partner__id=partner_id)
+
         serializer = BookingSerializer(bookings, many=True)
         return Response(serializer.data)
 

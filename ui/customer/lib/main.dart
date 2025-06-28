@@ -5,6 +5,7 @@ import 'home/home_screen.dart';
 import 'package_details/package_details.dart'; 
 import 'package:firebase_core/firebase_core.dart';
 import 'booking/booking_screen.dart';
+import 'booking/booking_history.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -60,6 +61,7 @@ class MyApp extends StatelessWidget {
           return PackageDetailsScreen(bookingData: bookingData);
         },
         '/booking': (context) => const BookingScreen(),
+        '/bookings-list': (context) => const BookingHistoryScreen(),
       },
     );
   }
