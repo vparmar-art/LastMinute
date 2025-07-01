@@ -55,24 +55,45 @@ void onStart(ServiceInstance service) async {
     service.stopSelf();
   });
 
-  // Fetch the location before starting the Timer
   final prefs = await SharedPreferences.getInstance();
   final partnerId = prefs.getInt('partner_id');
 
-  final channel = WebSocketChannel.connect(
-    Uri.parse('$wsBaseUrl/users/partner/$partnerId/location/'),
-  );
+  if (partnerId != null) {
+    _connectWebSocketWithRetry(partnerId);
+  }
+}
 
-  Timer.periodic(const Duration(seconds: 15), (timer) async {
-    Position position = await Geolocator.getCurrentPosition();
-    print("📍 Periodic position: ${position.latitude}, ${position.longitude}");
+void _connectWebSocketWithRetry(int partnerId) async {
+  const retryDelay = Duration(seconds: 5);
 
-    channel.sink.add(jsonEncode({
-      'lat': position.latitude,
-      'lng': position.longitude,
-    }));
-    print('📡 Location sent via WebSocket');
-  });
+  while (true) {
+    try {
+      final channel = WebSocketChannel.connect(
+        Uri.parse('$wsBaseUrl/users/partner/$partnerId/location/'),
+      );
+
+      Timer.periodic(const Duration(seconds: 15), (timer) async {
+        try {
+          Position position = await Geolocator.getCurrentPosition();
+          print("📍 Periodic position: ${position.latitude}, ${position.longitude}");
+          channel.sink.add(jsonEncode({
+            'lat': position.latitude,
+            'lng': position.longitude,
+          }));
+          print('📡 Location sent via WebSocket');
+        } catch (e) {
+          print("⚠️ Error getting location or sending via WebSocket: $e");
+        }
+      });
+
+      await channel.sink.done;
+      print("🔌 WebSocket disconnected. Retrying...");
+    } catch (e) {
+      print("❌ WebSocket connection failed: $e");
+    }
+
+    await Future.delayed(retryDelay);
+  }
 }
 
 class HomeScreen extends StatefulWidget {

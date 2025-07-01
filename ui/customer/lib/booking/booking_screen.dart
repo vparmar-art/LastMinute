@@ -77,6 +77,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
     channel.stream.listen((message) async {
       try {
+        print('📡 Booking WebSocket message: $message');
         final data = jsonDecode(message);
 
         // --- Begin logic from _fetchBooking for parsing and state ---

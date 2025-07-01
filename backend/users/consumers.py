@@ -24,19 +24,6 @@ class PartnerLocationConsumer(AsyncWebsocketConsumer):
         if latitude is not None and longitude is not None:
             await sync_to_async(update_partner_location)(self.partner_id, latitude, longitude)
 
-            bookings = await sync_to_async(list)(
-                Booking.objects.filter(partner_id=self.partner_id, status__in=['arriving', 'in_transit'])
-            )
-            for booking in bookings:
-                serialized_booking = await sync_to_async(lambda: BookingSerializer(booking).data)()
-                serialized_booking['partner_details'] = await sync_to_async(lambda: PartnerSerializer(booking.partner).data if booking.partner else None)()
-                await self.channel_layer.group_send(
-                    f'booking_{booking.id}',
-                    {
-                        'type': 'send.booking.update',
-                        'booking_data': json.loads(json.dumps(serialized_booking))
-                    }
-                )
             await self.channel_layer.group_send(
                 self.group_name,
                 {
