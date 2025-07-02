@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install -y \
 ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
 ENV C_INCLUDE_PATH=/usr/include/gdal
 ENV GDAL_VERSION=3.11.0
-ENV USE_S3_STATICFILES=1
 
 # Set working directory
 WORKDIR /app

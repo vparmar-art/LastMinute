@@ -206,8 +206,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+AWS_MEDIA_BUCKET_NAME = 'lastminute-media-root'
+MEDIA_URL = f'https://{AWS_MEDIA_BUCKET_NAME}.s3.amazonaws.com/'
 
 AWS_ACCESS_KEY_ID = 'AKIAQZFG5AII5U73LK6Y'
 AWS_SECRET_ACCESS_KEY = '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'

@@ -59,9 +59,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       if (_product!['image'] != null)
                         Center(
                           child: Image.network(
-                            _product!['image'].toString().startsWith('http')
+                            _product!['image'].toString().startsWith('https')
                                 ? _product!['image']
-                                : '${serverUrl}/${_product!['image']}',
+                                : '${mediaRootBaseUrl}${_product!['image']}',
                             height: 200,
                           ),
                         ),
