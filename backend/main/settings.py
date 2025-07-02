@@ -209,8 +209,6 @@ CORS_ALLOW_ALL_ORIGINS = True
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-USE_S3_STATICFILES = os.environ.get("USE_S3_STATICFILES") == "1"
-
 AWS_ACCESS_KEY_ID = 'AKIAQZFG5AII5U73LK6Y'
 AWS_SECRET_ACCESS_KEY = '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'
 AWS_STORAGE_BUCKET_NAME = 'zappa-deployments-last-minute'
@@ -218,13 +216,8 @@ AWS_S3_REGION_NAME = 'us-east-1'  # Change if using a different region
 AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
 AWS_SNS_ARN = 'arn:aws:sns:us-east-1:054037119505:app/GCM/notify-driver'
 
-if USE_S3_STATICFILES:
-    AWS_LOCATION = "django-admin-static"
-    STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-    STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
-else:
-    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
-    STATIC_URL = '/static/'
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+STATIC_URL = '/static/'
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Always set for non-S3 case
 static_dir = os.path.join(BASE_DIR, 'static')
