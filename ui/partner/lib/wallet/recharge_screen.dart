@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class RechargeScreen extends StatefulWidget {
@@ -21,7 +22,7 @@ class _RechargeScreenState extends State<RechargeScreen> {
   }
 
   Future<void> _fetchPlans() async {
-    final response = await http.get(Uri.parse('http://192.168.0.105:8000/api/wallet/plans/'));
+    final response = await http.get(Uri.parse('$apiBaseUrl/wallet/plans/'));
     print('📥 Plan API response: ${response.body}');
     if (response.statusCode == 200) {
       setState(() {
@@ -56,7 +57,7 @@ class _RechargeScreenState extends State<RechargeScreen> {
     }
 
     final response = await http.post(
-      Uri.parse('http://192.168.0.105:8000/api/wallet/recharge/'),
+      Uri.parse('$apiBaseUrl/wallet/recharge/'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'partner_id': partnerId,

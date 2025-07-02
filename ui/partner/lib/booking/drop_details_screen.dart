@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart' as launcher;
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import '../../constants.dart';
 
 class DropScreen extends StatefulWidget {
   const DropScreen({super.key});
@@ -82,7 +83,7 @@ class _DropScreenState extends State<DropScreen> {
                 print('✅ Drop OTP entered: $enteredOtp');
                 try {
                   final response = await http.post(
-                    Uri.parse('http://192.168.0.105:8000/api/bookings/validate-drop-otp/'),
+                    Uri.parse('$apiBaseUrl/bookings/validate-drop-otp/'),
                     headers: {'Content-Type': 'application/json'},
                     body: jsonEncode({
                       'booking_id': bookingId,

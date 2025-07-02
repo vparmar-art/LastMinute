@@ -11,6 +11,7 @@ import 'package:flutter_background_service_android/flutter_background_service_an
 import 'package:geolocator/geolocator.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
+import '../../constants.dart';
 
 
 Future<void> initializeService() async {
@@ -54,24 +55,45 @@ void onStart(ServiceInstance service) async {
     service.stopSelf();
   });
 
-  // Fetch the location before starting the Timer
   final prefs = await SharedPreferences.getInstance();
   final partnerId = prefs.getInt('partner_id');
 
-  final channel = WebSocketChannel.connect(
-    Uri.parse('ws://192.168.0.105:8000/ws/users/partner/$partnerId/location/'),
-  );
+  if (partnerId != null) {
+    _connectWebSocketWithRetry(partnerId);
+  }
+}
 
-  Timer.periodic(const Duration(seconds: 15), (timer) async {
-    Position position = await Geolocator.getCurrentPosition();
-    print("📍 Periodic position: ${position.latitude}, ${position.longitude}");
+void _connectWebSocketWithRetry(int partnerId) async {
+  const retryDelay = Duration(seconds: 5);
 
-    channel.sink.add(jsonEncode({
-      'lat': position.latitude,
-      'lng': position.longitude,
-    }));
-    print('📡 Location sent via WebSocket');
-  });
+  while (true) {
+    try {
+      final channel = WebSocketChannel.connect(
+        Uri.parse('$wsBaseUrl/users/partner/$partnerId/location/'),
+      );
+
+      Timer.periodic(const Duration(seconds: 15), (timer) async {
+        try {
+          Position position = await Geolocator.getCurrentPosition();
+          print("📍 Periodic position: ${position.latitude}, ${position.longitude}");
+          channel.sink.add(jsonEncode({
+            'lat': position.latitude,
+            'lng': position.longitude,
+          }));
+          print('📡 Location sent via WebSocket');
+        } catch (e) {
+          print("⚠️ Error getting location or sending via WebSocket: $e");
+        }
+      });
+
+      await channel.sink.done;
+      print("🔌 WebSocket disconnected. Retrying...");
+    } catch (e) {
+      print("❌ WebSocket connection failed: $e");
+    }
+
+    await Future.delayed(retryDelay);
+  }
 }
 
 class HomeScreen extends StatefulWidget {
@@ -113,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final partnerId = prefs.getInt('partner_id');
     if (partnerId != null) {
       _channel = WebSocketChannel.connect(
-        Uri.parse('ws://192.168.0.105:8000/ws/users/partner/$partnerId/location/'),
+        Uri.parse('$wsBaseUrl/users/partner/$partnerId/location/'),
       );
     }
 
@@ -356,7 +378,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return false;
 
     final response = await http.put(
-      Uri.parse('http://192.168.0.105:8000/api/users/partner/profile/'),
+      Uri.parse('$apiBaseUrl/users/partner/profile/'),
       headers: {
         'Authorization': 'Token $token',
         'Content-Type': 'application/json',
@@ -382,7 +404,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.0.105:8000/api/users/partner/profile/'),
+      Uri.parse('$apiBaseUrl/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
@@ -397,7 +419,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final partnerId = data['id'];
         await prefs.setInt('partner_id', partnerId);
         final walletResponse = await http.get(
-          Uri.parse('http://192.168.0.105:8000/api/wallet/partner-wallet/$partnerId/'),
+          Uri.parse('$apiBaseUrl/wallet/partner-wallet/$partnerId/'),
           headers: {'Authorization': 'Token $token'},
         );
 
@@ -431,9 +453,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     if (token == null) return;
+    final partnerId = prefs.getInt('partner_id');
+    if (partnerId == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.0.105:8000/api/bookings/list/'),
+      Uri.parse('$apiBaseUrl/bookings/list/?partner=$partnerId'),
       headers: {'Authorization': 'Token $token'},
     );
 

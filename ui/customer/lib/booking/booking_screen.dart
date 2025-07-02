@@ -1,3 +1,4 @@
+import '../constants.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
@@ -21,7 +22,7 @@ class _BookingScreenState extends State<BookingScreen> {
   Timer? _locationUpdateTimer;
   final String googleApiKey = 'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II';
   final ApiService _apiService = ApiService(googleApiKey: 'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II');
-  Timer? _pollingTimer;
+  // Timer? _pollingTimer;
   bool _isArriving = false;
   int? bookingId;
   bool _isLoading = true;
@@ -43,6 +44,7 @@ class _BookingScreenState extends State<BookingScreen> {
   GoogleMapController? _mapController;
   String? _pickupOtp;
   String? _dropOtp;
+  WebSocketChannel? _channel;
 
   @override
   void initState() {
@@ -57,135 +59,61 @@ class _BookingScreenState extends State<BookingScreen> {
       bookingId = args?['id'];
       _customerLat = args?['customer_lat'];
       _customerLng = args?['customer_lng'];
-      print('Booking ID received in BookingScreen: $bookingId');
       if (bookingId != null) {
-        _startPolling();
+        _startBookingWebSocket();
       }
     }
   }
 
-  void _startPolling() {
-    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) => _fetchBooking());
-  }
+  // void _startPolling() {
+  //   _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) => _fetchBooking());
+  // }
 
-  Future<void> _fetchBooking() async {
-    print('🔄 Fetching booking status for ID: $bookingId');
-    final url = Uri.parse('http://192.168.0.105:8000/api/bookings/$bookingId/');
-    try {
-      final response = await http.get(url, headers: {
-        'Content-Type': 'application/json',
-      });
+  void _startBookingWebSocket() {
+    if (bookingId == null) return;
+    final wsUrl = Uri.parse('$wsBaseUrl/bookings/$bookingId/');
+    _channel = WebSocketChannel.connect(wsUrl);
+    final channel = _channel!;
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final pickupOtp = data['pickup_otp'];
-        print('🔐 Pickup OTP: $pickupOtp');
+    channel.stream.listen((message) async {
+      try {
+        print('📡 Booking WebSocket message: $message');
+        final data = jsonDecode(message);
+
+        // --- Begin logic from _fetchBooking for parsing and state ---
+        // Parse pickup_otp, drop_otp, partner_details, pickup_latlng, drop_latlng, geometry, status
+        final partner = data['partner_details'];
+        final partnerProperties = partner?['properties'];
+        final pickupLatLng = data['pickup_latlng'];
+        final dropLatLng = data['drop_latlng'];
+        final geometry = partner?['geometry'];
+        final status = data['status'];
+
         _pickupOtp = data['pickup_otp']?.toString();
         _dropOtp = data['drop_otp']?.toString();
-        if (data['status'] == 'arriving' && !_isArriving) {
-          final partnerId = data['partner'];
-          final pickupLatLng = data['pickup_latlng'];
-          if (pickupLatLng != null) {
-            final coords = pickupLatLng['coordinates'];
-            if (coords != null && coords.length >= 2) {
-              _pickupLng = coords[0];
-              _pickupLat = coords[1];
-            }
-          }
-          await _fetchPartnerProfile(partnerId); // fetch partner details
-          if (mounted) {
-            setState(() {
-              _isArriving = true;
-              _isLoading = false;
-            });
-          }
-          _startLocationUpdates(partnerId);
-        }
-        if (data['status'] == 'in_transit') {
-          print('🚗 Ride is ongoing');
-          final dropLatLng = data['drop_latlng'];
-          if (dropLatLng != null) {
-            final coords = dropLatLng['coordinates'];
-            if (coords != null && coords.length >= 2) {
-              _dropLng = coords[0];
-              _dropLat = coords[1];
-            }
-          }
-          if (mounted) {
-            setState(() {
-              _isArriving = false;
-              _isLoading = false;
-              _drawDropRoute();
-            });
-          }
-          // _pollingTimer?.cancel();
-        }
-        if (data['status'] == 'completed') {
-          print('✅ Ride completed, navigating to home');
-          dispose();
-          if (mounted) {
-            Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
-          }
-          return;
-        }
-      } else {
-        print('Error fetching booking: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error: $e');
-    }
-  }
+        _partnerName = partnerProperties != null && partnerProperties['driver_name'] != null ? partnerProperties['driver_name'] : '';
+        _driverPhone = partnerProperties != null && partnerProperties['driver_phone'] != null ? partnerProperties['driver_phone'].toString() : '';
+        _vehicleNumber = partnerProperties != null && partnerProperties['vehicle_number'] != null ? partnerProperties['vehicle_number'] : '';
+        _vehicleType = partnerProperties != null && partnerProperties['vehicle_type'] != null ? partnerProperties['vehicle_type'] : '';
 
-  void _startLocationUpdates(int partnerId) {
-    final wsUrl = Uri.parse('ws://192.168.0.105:8000/ws/users/partner/$partnerId/location/');
-    final channel = WebSocketChannel.connect(wsUrl);
-
-    channel.stream.listen((message) {
-      try {
-        final data = jsonDecode(message);
-        final lat = data['lat'];
-        final lng = data['lng'];
-        print('📡 WebSocket location received: lat=$lat, lng=$lng');
-        setState(() {
-          _lat = lat;
-          _lng = lng;
-        });
-
-        if (!_isArriving && _dropLat != null && _dropLng != null) {
-          _drawDropRoute();
+        // Parse pickupLatLng using 'coordinates' if present
+        if (pickupLatLng != null && pickupLatLng['coordinates'] != null) {
+          final coords = pickupLatLng['coordinates'];
+          _pickupLng = coords[0];
+          _pickupLat = coords[1];
         }
-
-        if (_isArriving && _lat != null && _lng != null && _pickupLat != null && _pickupLng != null) {
-          _drawRoute();
+        // Parse dropLatLng using 'coordinates' if present
+        if (dropLatLng != null && dropLatLng['coordinates'] != null) {
+          final coords = dropLatLng['coordinates'];
+          _dropLng = coords[0];
+          _dropLat = coords[1];
         }
-      } catch (e) {
-        print('❌ Error decoding WebSocket message: $e');
-      }
-    }, onError: (error) {
-      print('❌ WebSocket error: $error');
-    }, onDone: () {
-      print('🔌 WebSocket connection closed');
-    });
-  }
-
-  Future<void> _fetchPartnerProfile(int partnerId) async {
-    final url = Uri.parse('http://192.168.0.105:8000/api/users/partner/profile/?id=$partnerId');
-    try {
-      final response = await http.get(url, headers: {
-        'Content-Type': 'application/json',
-      });
-      if (response.statusCode == 200) {
-        print('📦 Partner profile response: ${response.body}');
-        final data = json.decode(response.body);
-        final properties = data['properties'];
-        final geometry = data['geometry'];
-        _partnerName = properties['driver_name'] ?? '';
-        _driverPhone = properties['driver_phone']?.toString() ?? '';
-        _vehicleNumber = properties['vehicle_number'] ?? '';
-        _vehicleType = properties['vehicle_type'] ?? '';
-        final coords = geometry['coordinates'];
-        _lng = coords[0];
-        _lat = coords[1];
+        // Parse geometry using 'coordinates'
+        if (geometry != null && geometry['coordinates'] != null) {
+          final coords = geometry['coordinates'];
+          _lng = coords[0];
+          _lat = coords[1];
+        }
 
         String vehicleEmoji;
         switch (_vehicleType.toLowerCase()) {
@@ -203,17 +131,60 @@ class _BookingScreenState extends State<BookingScreen> {
         }
         _driverIcon = await createEmojiMarker(vehicleEmoji);
 
-        if (_lat != null && _lng != null && _pickupLat != null && _pickupLng != null) {
-          await _drawRoute();
+        // Only call _drawRoute/_drawDropRoute after _driverIcon is initialized
+        if (_driverIcon != null) {
+          if (status == 'arriving') {
+            if (mounted) {
+              setState(() {
+                _isArriving = true;
+                _isLoading = false;
+              });
+            }
+            if (_lat != null && _lng != null && _pickupLat != null && _pickupLng != null) {
+              await _drawRoute();
+            }
+          } else if (status == 'in_transit') {
+            print('🚗 Ride is ongoing');
+            if (mounted) {
+              setState(() {
+                _isArriving = false;
+                _isLoading = false;
+              });
+            }
+            if (_lat != null && _lng != null && _dropLat != null && _dropLng != null) {
+              await _drawDropRoute();
+            }
+          } else if (status == 'completed') {
+            print('✅ Ride completed, navigating to home');
+            _channel?.sink.close();
+            _channel = null;
+            if (mounted) {
+              Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+            }
+          }
         }
-        setState(() {});
-      } else {
-        print('Error fetching partner profile: ${response.statusCode}');
+        // --- End logic from _fetchBooking ---
+      } catch (e) {
+        print('❌ Error decoding Booking WebSocket message: $e');
       }
-    } catch (e) {
-      print('Error fetching partner profile: $e');
-    }
+    }, onError: (error) {
+      print('❌ Booking WebSocket error for bookingId $bookingId: $error');
+    }, onDone: () {
+      print('🔌 Booking WebSocket connection done for bookingId: $bookingId');
+      // Attempt reconnection
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          print('🔄 Retrying WebSocket connection...');
+          _startBookingWebSocket();
+        }
+      });
+    });
   }
+
+  // _fetchBooking method removed; logic now handled in _startBookingWebSocket
+
+  // Uncommented and replaced by _startBookingWebSocket()
+
 
   Future<BitmapDescriptor> createEmojiMarker(String emoji) async {
     final TextPainter textPainter = TextPainter(
@@ -316,11 +287,13 @@ class _BookingScreenState extends State<BookingScreen> {
             _lng! > _pickupLng! ? _lng! : _pickupLng!,
           ),
         );
-        controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 60));
+        controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 150));
       }
     }
 
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _drawDropRoute() async {
@@ -364,7 +337,7 @@ class _BookingScreenState extends State<BookingScreen> {
           _lng! > _dropLng! ? _lng! : _dropLng!,
         ),
       );
-      _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 180));
+      _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 150));
     }
 
     setState(() {});
@@ -372,8 +345,9 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   void dispose() {
-    _pollingTimer?.cancel();
+    // _pollingTimer?.cancel();
     _locationUpdateTimer?.cancel();
+    // Do not close the WebSocket here; only close on ride completed
     super.dispose();
   }
 

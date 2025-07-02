@@ -417,6 +417,10 @@ class _HomeScreenState extends State<HomeScreen> {
               // TODO: Navigate to terms screen
             } else if (key == 'logout') {
               _logout();
+            } else if (key == 'home') {
+              Navigator.pushNamed(context, '/home');
+            } else if (key == 'bookings-list') {
+              Navigator.pushNamed(context, '/bookings-list');
             }
           },
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../home/home_screen.dart';
+import '../../constants.dart';
 
 class VehicleType {
   final String name;
@@ -59,7 +60,7 @@ class _VehiclesPartState extends State<VehiclesPart> {
 
   Future<void> fetchVehicleTypes() async {
     final response = await http.get(
-      Uri.parse('http://192.168.0.105:8000/api/vehicles/types/'),
+      Uri.parse('$apiBaseUrl/vehicles/types/'),
     );
 
     if (response.statusCode == 200) {

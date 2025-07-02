@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../../home/home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
+import '../../constants.dart';
 
 class PackageDetailsScreen extends StatefulWidget {
   final BookingData bookingData;
@@ -163,7 +164,7 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                     widget.bookingData.boxes = int.tryParse(_boxesController.text);
                     widget.bookingData.helper_required = _helperRequired;
                     print('📦 Booking data: ${jsonEncode(widget.bookingData.toJson())}');
-                    final uri = Uri.parse('http://192.168.0.105:8000/api/bookings/start/');
+                    final uri = Uri.parse('$apiBaseUrl/bookings/start/');
 
                     final response = await http.post(
                       uri,

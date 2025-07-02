@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../constants.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart' as launcher;
 import 'package:geolocator/geolocator.dart';
@@ -113,7 +114,7 @@ class _PickupScreenState extends State<PickupScreen> {
                 print('✅ OTP entered: $enteredOtp');
                 try {
                   final response = await http.post(
-                    Uri.parse('http://192.168.0.105:8000/api/bookings/validate-pickup-otp/'),
+                    Uri.parse('$apiBaseUrl/bookings/validate-pickup-otp/'),
                     headers: {'Content-Type': 'application/json'},
                     body: jsonEncode({
                       'booking_id': pickupBookingId,

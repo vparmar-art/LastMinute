@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../../constants.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.0.105:8000/api/users/partner';
+  static const String baseUrl = '$apiBaseUrl/users/partner';
 
   Future<String> sayHello() async {
     final response = await http.get(Uri.parse('$baseUrl/hello/'));

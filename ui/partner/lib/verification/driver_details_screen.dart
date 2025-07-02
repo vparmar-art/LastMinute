@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../constants.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -33,7 +34,7 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
     if (token == null) return;
 
     final response = await http.get(
-      Uri.parse('http://192.168.0.105:8000/api/users/partner/profile/'),
+      Uri.parse('$apiBaseUrl/users/partner/profile/'),
       headers: {'Authorization': 'Token $token'},
     );
 
@@ -56,7 +57,7 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
     final token = prefs.getString('auth_token');
     if (token == null) return;
 
-    final uri = Uri.parse('http://192.168.0.105:8000/api/users/partner/profile/');
+    final uri = Uri.parse('$apiBaseUrl/users/partner/profile/');
     final request = http.MultipartRequest('PUT', uri)
       ..headers['Authorization'] = 'Token $token'
       ..fields['driver_name'] = _driverNameController.text

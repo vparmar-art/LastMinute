@@ -20,24 +20,36 @@ class SideNavigation extends StatelessWidget {
         children: [
           const SizedBox(height: 100),
           // Profile Section
-          CircleAvatar(
-            radius: 40,
-            backgroundImage: NetworkImage(
-              'https://api.dicebear.com/7.x/shapes/png?seed=$customerName',
-            ),
-            backgroundColor: Colors.transparent,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            customerName,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
+          GestureDetector(
+            onTap: () => onItemSelected('home'),
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 40,
+                  backgroundImage: NetworkImage(
+                    'https://api.dicebear.com/7.x/shapes/png?seed=$customerName',
+                  ),
+                  backgroundColor: Colors.transparent,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  customerName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 30),
 
           // Navigation Items
+          ListTile(
+            leading: const Icon(Icons.history),
+            title: const Text('History'),
+            onTap: () => onItemSelected('bookings-list'),
+          ),
           ListTile(
             leading: const Icon(Icons.support_agent),
             title: const Text('Support'),

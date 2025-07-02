@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -43,7 +44,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   }
 
   Future<void> fetchBookingDetails(int id) async {
-    final url = Uri.parse('http://192.168.0.105:8000/api/bookings/$id/');
+    final url = Uri.parse('$apiBaseUrl/bookings/$id/');
     print('Fetching booking details for ID: $id from $url');
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -81,7 +82,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     });
 
     try {
-      final url = Uri.parse('http://192.168.0.105:8000/api/bookings/$bookingId/status/');
+      final url = Uri.parse('$apiBaseUrl/bookings/$bookingId/status/');
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
       final response = await http.post(

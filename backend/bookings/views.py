@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from .models import Booking
 from users.models import Customer, Partner
 from .serializers import BookingSerializer
+from users.serializers.partner import PartnerSerializer
 from .sns import send_push_notification
 from users.models.token import Token
 import random
@@ -17,7 +18,15 @@ def booking_list(request):
     List all bookings or create a new booking.
     """
     if request.method == 'GET':
+        customer_id = request.query_params.get('customer')
+        partner_id = request.query_params.get('partner')
+
         bookings = Booking.objects.all()
+        if customer_id:
+            bookings = bookings.filter(customer__id=customer_id)
+        if partner_id:
+            bookings = bookings.filter(partner__id=partner_id)
+
         serializer = BookingSerializer(bookings, many=True)
         return Response(serializer.data)
 
@@ -47,12 +56,12 @@ def booking_list(request):
         return Response(BookingSerializer(booking).data, status=status.HTTP_201_CREATED)
 
 @api_view(['GET', 'PUT'])
-def booking_detail(request, pk):
+def booking_detail(request, booking_id):
     """
     Retrieve or update a booking instance.
     """
     try:
-        booking = Booking.objects.get(pk=pk)
+        booking = Booking.objects.get(pk=booking_id)
     except Booking.DoesNotExist:
         return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -68,7 +77,7 @@ def booking_detail(request, pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
-def update_booking_status(request, pk):
+def update_booking_status(request, booking_id):
     """
     Update the status of a booking (e.g., in_transit, arriving, completed).
     Requires Authorization token for identifying the partner.
@@ -94,7 +103,7 @@ def update_booking_status(request, pk):
         customer = None
 
     try:
-        booking = Booking.objects.get(pk=pk)
+        booking = Booking.objects.get(pk=booking_id)
     except Booking.DoesNotExist:
         return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -260,3 +269,32 @@ def validate_drop_otp(request):
         }, status=status.HTTP_200_OK)
     else:
         return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+@api_view(['GET'])
+def booking_full_details(request, booking_id):
+    """
+    Retrieve full booking details including nested partner info and lat/lng objects.
+    """
+    try:
+        booking = Booking.objects.get(pk=booking_id)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    data = BookingSerializer(booking).data
+
+    if booking.pickup_latlng:
+        data['pickup_latlng'] = {
+            'lat': booking.pickup_latlng.y,
+            'lng': booking.pickup_latlng.x
+        }
+    if booking.drop_latlng:
+        data['drop_latlng'] = {
+            'lat': booking.drop_latlng.y,
+            'lng': booking.drop_latlng.x
+        }
+
+    if booking.partner:
+        data['partner_details'] = PartnerSerializer(booking.partner).data
+    else:
+        data['partner_details'] = None
+
+    return Response(data)
