@@ -15,7 +15,7 @@ jobs:
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.5'  
+          flutter-version: '3.29.2'  
 
       - name: Build Maketplace Web
         run: cd ui/marketplace && flutter build web
