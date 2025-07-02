@@ -66,9 +66,9 @@ class _HomeScreenState extends State<HomeScreen> {
           : GridView.builder(
               padding: const EdgeInsets.all(12),
               itemCount: _products.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                childAspectRatio: 2 / 3,
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 250,
+                childAspectRatio: 2 / 2.5,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
               ),
@@ -101,8 +101,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                               ? product['image']
                                               : '${mediaRootBaseUrl}${product['image']}',
                                           fit: BoxFit.contain,
-                                          height: 80,
-                                          width: 80,
                                           alignment: Alignment.center,
                                           errorBuilder: (context, error, stackTrace) =>
                                               const Icon(Icons.broken_image, size: 60, color: Colors.grey),
