@@ -97,9 +97,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ? Padding(
                                         padding: const EdgeInsets.all(8.0),
                                         child: Image.network(
-                                          product['image'].toString().startsWith('http')
+                                          product['image'].toString().startsWith('https')
                                               ? product['image']
-                                              : '${serverUrl}/${product['image']}',
+                                              : '${mediaRootBaseUrl}${product['image']}',
                                           fit: BoxFit.contain,
                                           height: 80,
                                           width: 80,

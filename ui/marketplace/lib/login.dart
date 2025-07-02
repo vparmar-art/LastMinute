@@ -32,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('$serverUrl/api/users/customer/send-otp/'),
+        Uri.parse('$usersBaseUrl/customer/send-otp/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'phone_number': phone}),
       );
@@ -69,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('$serverUrl/api/users/customer/verify-otp/'),
+        Uri.parse('$usersBaseUrl/customer/verify-otp/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'phone_number': phone, 'otp': otp}),
       );

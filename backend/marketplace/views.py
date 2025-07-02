@@ -15,6 +15,7 @@ def list_categories(request):
 def list_products(request):
     products = Product.objects.filter(is_active=True)
     data = []
+    print("api called")
     for product in products:
         item = {
             'id': product.id,
