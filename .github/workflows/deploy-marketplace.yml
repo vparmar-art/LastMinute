@@ -18,7 +18,7 @@ jobs:
           flutter-version: '3.19.0'  # Update as per your Flutter version
 
       - name: Build Flutter Web
-        run: flutter build web
+        run: cd ui/marketplace && flutter build web
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -29,4 +29,4 @@ jobs:
 
       - name: Sync to S3
         run: |
-          aws s3 sync build/web s3://marketplace-ui-app --delete
+          aws s3 sync ui/marketplace/build/web s3://marketplace-ui-app --delete
