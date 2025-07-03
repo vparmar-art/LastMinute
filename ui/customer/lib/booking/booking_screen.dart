@@ -369,7 +369,28 @@ class _BookingScreenState extends State<BookingScreen> {
         iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? (_pickupOtp == null
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        color: Colors.orange,
+                        strokeWidth: 4,
+                      ),
+                      SizedBox(height: 20),
+                      Text(
+                        'Looking for drivers nearby...',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : const Center(child: CircularProgressIndicator()))
           : Stack(
               children: [
                 if (_lat != null && _lng != null)
