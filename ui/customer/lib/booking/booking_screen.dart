@@ -59,7 +59,7 @@ class _BookingScreenState extends State<BookingScreen> {
       bookingId = args?['id'];
       _customerLat = args?['customer_lat'];
       _customerLng = args?['customer_lng'];
-      if (bookingId != null) {
+      if (bookingId != null && _channel == null) {
         _startBookingWebSocket();
       }
     }
@@ -70,7 +70,8 @@ class _BookingScreenState extends State<BookingScreen> {
   // }
 
   void _startBookingWebSocket() {
-    if (bookingId == null) return;
+    if (bookingId == null || _channel != null) return;
+    print('🔌 Starting WebSocket connection for booking $bookingId');
     final wsUrl = Uri.parse('$wsBaseUrl/bookings/$bookingId/');
     _channel = WebSocketChannel.connect(wsUrl);
     final channel = _channel!;
@@ -88,6 +89,12 @@ class _BookingScreenState extends State<BookingScreen> {
         final dropLatLng = data['drop_latlng'];
         final geometry = partner?['geometry'];
         final status = data['status'];
+        
+        // If status is 'created' and no partner assigned, don't process further
+        if (status == 'created' && partner == null) {
+          print('📋 Booking is still in created state, waiting for partner assignment');
+          return;
+        }
 
         _pickupOtp = data['pickup_otp']?.toString();
         _dropOtp = data['drop_otp']?.toString();
@@ -171,11 +178,14 @@ class _BookingScreenState extends State<BookingScreen> {
       print('❌ Booking WebSocket error for bookingId $bookingId: $error');
     }, onDone: () {
       print('🔌 Booking WebSocket connection done for bookingId: $bookingId');
-      // Attempt reconnection
+      _channel = null;
+      // Only attempt reconnection if the screen is still mounted and active
       Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
+        if (mounted && ModalRoute.of(context)?.isCurrent == true) {
           print('🔄 Retrying WebSocket connection...');
           _startBookingWebSocket();
+        } else {
+          print('🛑 Not retrying WebSocket - screen not active');
         }
       });
     });
@@ -347,7 +357,12 @@ class _BookingScreenState extends State<BookingScreen> {
   void dispose() {
     // _pollingTimer?.cancel();
     _locationUpdateTimer?.cancel();
-    // Do not close the WebSocket here; only close on ride completed
+    // Close the WebSocket when leaving the screen
+    if (_channel != null) {
+      print('🔌 Closing WebSocket connection on dispose');
+      _channel?.sink.close();
+      _channel = null;
+    }
     super.dispose();
   }
 
