@@ -1,3 +1,8 @@
-const String baseUrl = "http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/ecom";
-const String usersBaseUrl = "http://prod-lb-1092214212.us-east-1.elb.amazonaws.com/api/users";
-const String mediaRootBaseUrl = "https://lastminute-media-root.s3.amazonaws.com";
+import 'secrets.dart';
+
+// API Base URLs
+const String apiBaseUrl = Secrets.apiBaseUrl;
+const String wsBaseUrl = Secrets.wsBaseUrl;
+
+// Google Maps API Key
+const String googleMapsApiKey = Secrets.googleMapsApiKey;
