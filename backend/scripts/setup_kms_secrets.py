@@ -84,7 +84,7 @@ class KMSSecretManager:
         
         # Define all secrets that need encryption - USER MUST PROVIDE THESE
         secrets = {
-            'DJANGO_SECRET_KEY': os.getenv('DJANGO_SECRET_KEY', 'YOUR_DJANGO_SECRET_KEY_HERE'),
+            'SECRET_KEY': os.getenv('SECRET_KEY', 'YOUR_SECRET_KEY_HERE'),
             'DB_PASSWORD': os.getenv('DB_PASSWORD', 'YOUR_DB_PASSWORD_HERE'),
             'AWS_ACCESS_KEY_ID': os.getenv('AWS_ACCESS_KEY_ID', 'YOUR_AWS_ACCESS_KEY_ID_HERE'),
             'AWS_SECRET_ACCESS_KEY': os.getenv('AWS_SECRET_ACCESS_KEY', 'YOUR_AWS_SECRET_ACCESS_KEY_HERE'),
@@ -122,7 +122,7 @@ class KMSSecretManager:
         """Generate .env file with encrypted values"""
         
         env_content = """# Django Settings
-DJANGO_SECRET_KEY={DJANGO_SECRET_KEY}
+SECRET_KEY={SECRET_KEY}
 DEBUG=False
 ALLOWED_HOSTS=localhost,127.0.0.1,*
 
@@ -218,8 +218,8 @@ AWS_SNS_ARN=arn:aws:sns:us-east-1:054037119505:app/GCM/notify-driver
                     ],
                     "secrets": [
                         {
-                            "name": "DJANGO_SECRET_KEY",
-                            "valueFrom": f"kms:{self.key_alias}:{encrypted_secrets['DJANGO_SECRET_KEY'][4:]}"
+                            "name": "SECRET_KEY",
+                            "valueFrom": f"kms:{self.key_alias}:{encrypted_secrets['SECRET_KEY'][4:]}"
                         },
                         {
                             "name": "DB_PASSWORD",

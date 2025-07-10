@@ -29,7 +29,7 @@ Before running the encryption script, set your actual secrets as environment var
 
 ```bash
 # Set your actual secrets (DO NOT COMMIT THESE)
-export DJANGO_SECRET_KEY="your-actual-django-secret-key"
+export SECRET_KEY="your-actual-django-secret-key"
 export DB_PASSWORD="your-actual-database-password"
 export AWS_ACCESS_KEY_ID="your-actual-aws-access-key"
 export AWS_SECRET_ACCESS_KEY="your-actual-aws-secret-key"
@@ -64,7 +64,7 @@ The script generates `ecs-task-definition.json` with encrypted secrets. Update i
       "image": "YOUR-ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/lastminute-backend:latest",
       "secrets": [
         {
-          "name": "DJANGO_SECRET_KEY",
+          "name": "SECRET_KEY",
           "valueFrom": "kms:alias/lastminute-secrets:your-encrypted-secret-key"
         },
         {

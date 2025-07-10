@@ -65,7 +65,7 @@
           "value": "us-east-1"
         },
         {
-          "name": "DJANGO_SECRET_KEY",
+          "name": "SECRET_KEY",
           "value": "django-insecure-k3g7t0l_c9r3#2#i62lbiw)=g%kn4+%a8(yi8p&!+n9lyn&%&n"
         },
         {

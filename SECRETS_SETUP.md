@@ -12,7 +12,7 @@ The application uses environment variables for configuration. In production, the
 
 ```bash
 # Django Settings
-DJANGO_SECRET_KEY=your-django-secret-key
+SECRET_KEY=your-django-secret-key
 DEBUG=False
 ALLOWED_HOSTS=localhost,127.0.0.1,*
 
