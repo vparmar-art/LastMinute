@@ -65,8 +65,8 @@ def get_secure_env_var(var_name, default=None):
 SECRET_KEY = get_secure_env_var('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG_VALUE = get_secure_env_var('DEBUG', 'True')
-DEBUG = DEBUG_VALUE.lower() == 'true' if DEBUG_VALUE else True
+DEBUG_VALUE = get_secure_env_var('DEBUG', 'False')
+DEBUG = DEBUG_VALUE.lower() == 'true' if DEBUG_VALUE else False
 
 APPEND_SLASH = False
 
@@ -243,6 +243,14 @@ USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+# Security Headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 AWS_MEDIA_BUCKET_NAME = get_secure_env_var('AWS_MEDIA_BUCKET_NAME', 'lastminute-media-root')

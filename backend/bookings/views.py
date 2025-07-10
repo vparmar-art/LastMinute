@@ -1,4 +1,5 @@
 import json
+import logging
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
 from rest_framework import status, serializers
@@ -11,6 +12,8 @@ from users.serializers.partner import PartnerSerializer
 from .sns import send_push_notification
 from users.models.token import Token
 import random
+
+logger = logging.getLogger(__name__)
 
 @api_view(['GET', 'POST'])
 def booking_list(request):
@@ -167,7 +170,6 @@ def start_booking(request):
         booking.save()
     else:
         booking.save()
-    print(f"✅ Booking saved with ID: {booking.id}")
 
     # Send push notifications to partners within 10km of pickup location with endpoint ARN
     partners = Partner.objects.exclude(device_endpoint_arn__isnull=True)\
@@ -176,7 +178,6 @@ def start_booking(request):
         .annotate(distance=Distance('current_location', booking.pickup_latlng))\
         .filter(distance__lte=10000)  # 10,000 meters = 10 km
     for partner in partners:
-        print(f"device_endpoint_arn {partner.device_endpoint_arn}")
         payload = {
             "default": "Fallback message",
             "GCM": json.dumps({
@@ -189,7 +190,6 @@ def start_booking(request):
                 }
             })
         }
-        print(f"📦 SNS Payload for {partner.device_endpoint_arn}: {json.dumps(payload)}")
         try:
             send_push_notification(
                 partner.device_endpoint_arn,
@@ -261,7 +261,7 @@ def validate_drop_otp(request):
                 partner_wallet.rides_remaining -= 1
                 partner_wallet.save()
         except Exception as e:
-            print(f"⚠️ Error updating partner wallet: {e}")
+            logger.error(f"Error updating partner wallet: {e}")
 
         return Response({
             'success': 'Drop OTP validated successfully',

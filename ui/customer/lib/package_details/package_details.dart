@@ -163,7 +163,7 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                     widget.bookingData.customer = customer_id?.toString();
                     widget.bookingData.boxes = int.tryParse(_boxesController.text);
                     widget.bookingData.helper_required = _helperRequired;
-                    print('📦 Booking data: ${jsonEncode(widget.bookingData.toJson())}');
+                
                     final uri = Uri.parse('$apiBaseUrl/bookings/start/');
 
                     final response = await http.post(

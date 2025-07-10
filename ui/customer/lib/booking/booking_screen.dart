@@ -75,26 +75,17 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
 
   void _startBookingWebSocket() {
     if (bookingId == null || _channel != null || _isConnecting || !_isAppActive) {
-      print('🛑 WebSocket connection skipped: bookingId=$bookingId, channel=${_channel != null}, connecting=$_isConnecting, active=$_isAppActive');
       return;
     }
-    
-    print('🔌 Starting WebSocket connection for booking $bookingId');
     _isConnecting = true;
-    
     try {
       final wsUrl = Uri.parse('$wsBaseUrl/bookings/$bookingId/');
-      print('🔌 Connecting to WebSocket: $wsUrl');
-      
       _channel = WebSocketChannel.connect(wsUrl);
       _isConnecting = false;
       final channel = _channel!;
-
       channel.stream.listen((message) async {
         try {
-          print('📡 Booking WebSocket message: $message');
           final data = jsonDecode(message);
-
           // --- Begin logic from _fetchBooking for parsing and state ---
           // Parse pickup_otp, drop_otp, partner_details, pickup_latlng, drop_latlng, geometry, status
           final partner = data['partner_details'];
@@ -103,20 +94,16 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
           final dropLatLng = data['drop_latlng'];
           final geometry = partner?['geometry'];
           final status = data['status'];
-          
           // If status is 'created' and no partner assigned, don't process further
           if (status == 'created' && partner == null) {
-            print('📋 Booking is still in created state, waiting for partner assignment');
             return;
           }
-
           _pickupOtp = data['pickup_otp']?.toString();
           _dropOtp = data['drop_otp']?.toString();
           _partnerName = partnerProperties != null && partnerProperties['driver_name'] != null ? partnerProperties['driver_name'] : '';
           _driverPhone = partnerProperties != null && partnerProperties['driver_phone'] != null ? partnerProperties['driver_phone'].toString() : '';
           _vehicleNumber = partnerProperties != null && partnerProperties['vehicle_number'] != null ? partnerProperties['vehicle_number'] : '';
           _vehicleType = partnerProperties != null && partnerProperties['vehicle_type'] != null ? partnerProperties['vehicle_type'] : '';
-
           // Parse pickupLatLng using 'coordinates' if present
           if (pickupLatLng != null && pickupLatLng['coordinates'] != null) {
             final coords = pickupLatLng['coordinates'];
@@ -135,7 +122,6 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
             _lng = coords[0];
             _lat = coords[1];
           }
-
           String vehicleEmoji;
           switch (_vehicleType.toLowerCase()) {
             case 'bike':
@@ -151,7 +137,6 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
               vehicleEmoji = '🚘';
           }
           _driverIcon = await createEmojiMarker(vehicleEmoji);
-
           // Only call _drawRoute/_drawDropRoute after _driverIcon is initialized
           if (_driverIcon != null) {
             if (status == 'arriving') {
@@ -165,7 +150,6 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                 await _drawRoute();
               }
             } else if (status == 'in_transit') {
-              print('🚗 Ride is ongoing');
               if (mounted) {
                 setState(() {
                   _isArriving = false;
@@ -176,7 +160,6 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                 await _drawDropRoute();
               }
             } else if (status == 'completed') {
-              print('✅ Ride completed, navigating to home');
               _channel?.sink.close();
               _channel = null;
               if (mounted) {
@@ -186,15 +169,13 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
           }
           // --- End logic from _fetchBooking ---
         } catch (e) {
-          print('❌ Error decoding Booking WebSocket message: $e');
+          // Swallow error
         }
       }, onError: (error) {
-        print('❌ Booking WebSocket error for bookingId $bookingId: $error');
         _isConnecting = false;
         _channel = null;
         // Only retry if app is active and screen is mounted
         if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
-          print('🔄 Retrying WebSocket connection in 5 seconds...');
           Future.delayed(const Duration(seconds: 5), () {
             if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
               _startBookingWebSocket();
@@ -202,32 +183,22 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
           });
         }
       }, onDone: () {
-        print('🔌 Booking WebSocket connection done for bookingId: $bookingId');
         _isConnecting = false;
         _channel = null;
         // Only attempt reconnection if the screen is still mounted and active
         if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
-          print('🔄 Retrying WebSocket connection in 2 seconds...');
           Future.delayed(const Duration(seconds: 2), () {
             if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
               _startBookingWebSocket();
-            } else {
-              print('🛑 Not retrying WebSocket - app not active or screen not active');
             }
           });
-        } else {
-          print('🛑 Not retrying WebSocket - app not active or screen not active');
         }
       });
-      
-      print('✅ WebSocket connection established successfully');
     } catch (e) {
-      print('❌ Failed to establish WebSocket connection: $e');
       _isConnecting = false;
       _channel = null;
       // Only retry if app is active
       if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
-        print('🔄 Retrying WebSocket connection in 5 seconds due to connection error...');
         Future.delayed(const Duration(seconds: 5), () {
           if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
             _startBookingWebSocket();
@@ -402,11 +373,9 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // _pollingTimer?.cancel();
     _locationUpdateTimer?.cancel();
     // Close the WebSocket when leaving the screen
     if (_channel != null) {
-      print('🔌 Closing WebSocket connection on dispose');
       _channel?.sink.close();
       _channel = null;
     }
@@ -416,13 +385,10 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    print('🔄 App lifecycle state changed: $state');
-    
     switch (state) {
       case AppLifecycleState.resumed:
         _isAppActive = true;
         if (bookingId != null && _channel == null && !_isConnecting) {
-          print('🔄 App resumed, reconnecting WebSocket...');
           _startBookingWebSocket();
         }
         break;
@@ -431,7 +397,6 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
       case AppLifecycleState.detached:
         _isAppActive = false;
         if (_channel != null) {
-          print('🔄 App backgrounded, closing WebSocket...');
           _channel?.sink.close();
           _channel = null;
         }

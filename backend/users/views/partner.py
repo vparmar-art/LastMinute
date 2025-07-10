@@ -193,8 +193,6 @@ class PartnerLocationView(APIView):
 
         latitude = request.data.get('latitude')
         longitude = request.data.get('longitude')
-        print(f'Received coordinates: latitude={latitude}, longitude={longitude}')
-
         if latitude is None or longitude is None:
             return Response({'error': 'Latitude and longitude are required'}, status=400)
 
@@ -204,8 +202,6 @@ class PartnerLocationView(APIView):
             return Response({'error': result['error']}, status=404)
         if result.get('skipped'):
             return Response({'message': result['reason']})
-
-        print('Location updated successfully')
         return Response({'message': 'Location updated successfully'})
 
     def get(self, request):
