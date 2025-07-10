@@ -63,26 +63,25 @@
         {
           "name": "AWS_DEFAULT_REGION",
           "value": "us-east-1"
-        }
-      ],
-      "secrets": [
+        },
         {
           "name": "DJANGO_SECRET_KEY",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:054037119505:secret:lastminute/django-secret-key"
+          "value": "django-insecure-k3g7t0l_c9r3#2#i62lbiw)=g%kn4+%a8(yi8p&!+n9lyn&%&n"
         },
         {
           "name": "DB_PASSWORD",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:054037119505:secret:lastminute/db-password"
+          "value": "vikashparmar"
         },
         {
           "name": "AWS_ACCESS_KEY_ID",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:054037119505:secret:lastminute/aws-access-key"
+          "value": "AKIAQZFG5AII5U73LK6Y"
         },
         {
           "name": "AWS_SECRET_ACCESS_KEY",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:054037119505:secret:lastminute/aws-secret-key"
+          "value": "whSgnkpjus++V2CxZPmXfploPbz2BUWTngjnuvgX"
         }
       ],
+      "secrets": [],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
@@ -100,20 +99,7 @@
         "timeout": 5,
         "retries": 3,
         "startPeriod": 60
-      },
-      "mountPoints": [],
-      "volumesFrom": [],
-      "ulimits": [],
-      "extraHosts": [],
-      "dockerLabels": {},
-      "dependsOn": [],
-      "disableNetworking": false,
-      "interactive": false,
-      "pseudoTerminal": false,
-      "readonlyRootFilesystem": false,
-      "systemControls": [],
-      "privileged": false,
-      "user": "1000"
+      }
     }
   ]
 }
