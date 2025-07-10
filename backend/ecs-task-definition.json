@@ -6,12 +6,12 @@
   ],
   "cpu": "256",
   "memory": "512",
-  "executionRoleArn": "arn:aws:iam::YOUR-ACCOUNT:role/ecsTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::YOUR-ACCOUNT:role/ecsTaskRole",
+  "executionRoleArn": "arn:aws:iam::054037119505:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::054037119505:role/ecsTaskRole",
   "containerDefinitions": [
     {
       "name": "django-app",
-      "image": "YOUR-ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/lastminute-backend:latest",
+      "image": "054037119505.dkr.ecr.us-east-1.amazonaws.com/lastminute-backend:latest",
       "essential": true,
       "portMappings": [
         {
@@ -59,24 +59,28 @@
         {
           "name": "AWS_SNS_ARN",
           "value": "arn:aws:sns:us-east-1:054037119505:app/GCM/notify-driver"
+        },
+        {
+          "name": "AWS_DEFAULT_REGION",
+          "value": "us-east-1"
         }
       ],
       "secrets": [
         {
           "name": "DJANGO_SECRET_KEY",
-          "valueFrom": "kms:alias/lastminute-secrets:AQICAHgSYhry3pLiWiOSyrjRo05NTOloCX7gCl7yUCEDDC4kCwGT+l0ois7FnjAYDZesp+JBAAAApDCBoQYJKoZIhvcNAQcGoIGTMIGQAgEAMIGKBgkqhkiG9w0BBwEwHgYJYIZIAWUDBAEuMBEEDM/q/RP6oJ2QGYsH9QIBEIBdtFzyIGcUB4wYp81koUky2Ku9rahRQWXx047IuUNMrP9iYFre9/FowL9EHpqpdbqRmIeQ4HbmjrsAgAe/0A2jt6KIl1wPF+r7kRFPVBNmcCsXxCvRc9SU+YAEzO+E"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:054037119505:secret:lastminute/django-secret-key"
         },
         {
           "name": "DB_PASSWORD",
-          "valueFrom": "kms:alias/lastminute-secrets:AQICAHgSYhry3pLiWiOSyrjRo05NTOloCX7gCl7yUCEDDC4kCwE+u+eE7djAEmpFCFlTSisPAAAAajBoBgkqhkiG9w0BBwagWzBZAgEAMFQGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMVWJalvMaEp6Ee7i7AgEQgCeJs7+Co4jFQeCi87PHIbHPCZsJiK4zbdELl7KluVYIhNs8N6c/KAU="
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:054037119505:secret:lastminute/db-password"
         },
         {
           "name": "AWS_ACCESS_KEY_ID",
-          "valueFrom": "kms:alias/lastminute-secrets:AQICAHgSYhry3pLiWiOSyrjRo05NTOloCX7gCl7yUCEDDC4kCwGffMqqTayW8JyA3MLTb0JTAAAAcjBwBgkqhkiG9w0BBwagYzBhAgEAMFwGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMXs8yy6lATINd6BXQAgEQgC9rcrVQjzZ5up8Z/WeYJxitnepqBpQWSFMnfuogqSf5r65zGjeLJO5ZJsmtH3CzbQ=="
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:054037119505:secret:lastminute/aws-access-key"
         },
         {
           "name": "AWS_SECRET_ACCESS_KEY",
-          "valueFrom": "kms:alias/lastminute-secrets:AQICAHgSYhry3pLiWiOSyrjRo05NTOloCX7gCl7yUCEDDC4kCwHEuryYcVZ0hSz+mEBy0kJRAAAAhzCBhAYJKoZIhvcNAQcGoHcwdQIBADBwBgkqhkiG9w0BBwEwHgYJYIZIAWUDBAEuMBEEDKt+TnCW4O95b9LI0wIBEIBDnw80D5GSaiDrROFICwk5DFZ6xlTZHMAQVeo9/9HZeqNhjS0vF5A40ORr4qfNqXPXlR70P8tHRNWbkb2DbjLG+R3x0A=="
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:054037119505:secret:lastminute/aws-secret-key"
         }
       ],
       "logConfiguration": {
@@ -86,7 +90,30 @@
           "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs"
         }
-      }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8000/health/ || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "mountPoints": [],
+      "volumesFrom": [],
+      "ulimits": [],
+      "extraHosts": [],
+      "dockerLabels": {},
+      "dependsOn": [],
+      "disableNetworking": false,
+      "interactive": false,
+      "pseudoTerminal": false,
+      "readonlyRootFilesystem": false,
+      "systemControls": [],
+      "privileged": false,
+      "user": "1000"
     }
   ]
 }
