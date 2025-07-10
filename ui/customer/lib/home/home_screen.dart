@@ -59,7 +59,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final String _googleApiKey = 'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II';
+  final String _googleApiKey = 'AIzaSyDktJbUpou1FhxfYCaaYywC-145hPE7qb0';
   late final ApiService _apiService;
   final BookingData _bookingData = BookingData();
 
@@ -247,6 +247,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final fromLatLng = _bookingData.pickupLatLng;
     final toLatLng =
         await _apiService.getLatLngFromSuggestion(_toController.text);
+
+    // Debug: Print route drawing info
+    print('📍 Drawing route...');
+    print('📍 Pickup LatLng: $fromLatLng');
+    print('📍 Drop Text: ${_toController.text}');
+    print('📍 Drop LatLng: $toLatLng');
+
     if (fromLatLng == null || toLatLng == null) return;
 
     final distanceInMeters = Geolocator.distanceBetween(
@@ -258,10 +265,19 @@ class _HomeScreenState extends State<HomeScreen> {
     _calculatedDistanceKm = double.parse((distanceInMeters / 1000).toStringAsFixed(2));
     _bookingData.distanceKm = _calculatedDistanceKm;
 
+    // Debug: Print calculated distance
+    print('📏 Distance in km: $_calculatedDistanceKm');
+
     _addMarker(fromLatLng, 'from', _fromController.text);
     _addMarker(toLatLng, 'to', _toController.text);
 
     final route = await _apiService.getRoutePolyline(fromLatLng, toLatLng);
+
+    // Debug: Print route points info
+    print('🛣️ Route points count: ${route.length}');
+    if (route.isEmpty) {
+      print('❌ Route returned is empty');
+    }
 
     setState(() {
       _polylines = [

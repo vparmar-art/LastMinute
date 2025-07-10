@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
@@ -18,10 +19,10 @@ class BookingScreen extends StatefulWidget {
   State<BookingScreen> createState() => _BookingScreenState();
 }
 
-class _BookingScreenState extends State<BookingScreen> {
+class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserver {
   Timer? _locationUpdateTimer;
-  final String googleApiKey = 'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II';
-  final ApiService _apiService = ApiService(googleApiKey: 'AIzaSyDWbXw8OI3ihn4byK5VHyMWLnestkBm1II');
+  final String googleApiKey = 'AIzaSyDktJbUpou1FhxfYCaaYywC-145hPE7qb0';
+  final ApiService _apiService = ApiService(googleApiKey: 'AIzaSyDktJbUpou1FhxfYCaaYywC-145hPE7qb0');
   // Timer? _pollingTimer;
   bool _isArriving = false;
   int? bookingId;
@@ -45,10 +46,13 @@ class _BookingScreenState extends State<BookingScreen> {
   String? _pickupOtp;
   String? _dropOtp;
   WebSocketChannel? _channel;
+  bool _isAppActive = true;
+  bool _isConnecting = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
@@ -70,125 +74,167 @@ class _BookingScreenState extends State<BookingScreen> {
   // }
 
   void _startBookingWebSocket() {
-    if (bookingId == null || _channel != null) return;
+    if (bookingId == null || _channel != null || _isConnecting || !_isAppActive) {
+      print('🛑 WebSocket connection skipped: bookingId=$bookingId, channel=${_channel != null}, connecting=$_isConnecting, active=$_isAppActive');
+      return;
+    }
+    
     print('🔌 Starting WebSocket connection for booking $bookingId');
-    final wsUrl = Uri.parse('$wsBaseUrl/bookings/$bookingId/');
-    _channel = WebSocketChannel.connect(wsUrl);
-    final channel = _channel!;
+    _isConnecting = true;
+    
+    try {
+      final wsUrl = Uri.parse('$wsBaseUrl/bookings/$bookingId/');
+      print('🔌 Connecting to WebSocket: $wsUrl');
+      
+      _channel = WebSocketChannel.connect(wsUrl);
+      _isConnecting = false;
+      final channel = _channel!;
 
-    channel.stream.listen((message) async {
-      try {
-        print('📡 Booking WebSocket message: $message');
-        final data = jsonDecode(message);
+      channel.stream.listen((message) async {
+        try {
+          print('📡 Booking WebSocket message: $message');
+          final data = jsonDecode(message);
 
-        // --- Begin logic from _fetchBooking for parsing and state ---
-        // Parse pickup_otp, drop_otp, partner_details, pickup_latlng, drop_latlng, geometry, status
-        final partner = data['partner_details'];
-        final partnerProperties = partner?['properties'];
-        final pickupLatLng = data['pickup_latlng'];
-        final dropLatLng = data['drop_latlng'];
-        final geometry = partner?['geometry'];
-        final status = data['status'];
-        
-        // If status is 'created' and no partner assigned, don't process further
-        if (status == 'created' && partner == null) {
-          print('📋 Booking is still in created state, waiting for partner assignment');
-          return;
-        }
+          // --- Begin logic from _fetchBooking for parsing and state ---
+          // Parse pickup_otp, drop_otp, partner_details, pickup_latlng, drop_latlng, geometry, status
+          final partner = data['partner_details'];
+          final partnerProperties = partner?['properties'];
+          final pickupLatLng = data['pickup_latlng'];
+          final dropLatLng = data['drop_latlng'];
+          final geometry = partner?['geometry'];
+          final status = data['status'];
+          
+          // If status is 'created' and no partner assigned, don't process further
+          if (status == 'created' && partner == null) {
+            print('📋 Booking is still in created state, waiting for partner assignment');
+            return;
+          }
 
-        _pickupOtp = data['pickup_otp']?.toString();
-        _dropOtp = data['drop_otp']?.toString();
-        _partnerName = partnerProperties != null && partnerProperties['driver_name'] != null ? partnerProperties['driver_name'] : '';
-        _driverPhone = partnerProperties != null && partnerProperties['driver_phone'] != null ? partnerProperties['driver_phone'].toString() : '';
-        _vehicleNumber = partnerProperties != null && partnerProperties['vehicle_number'] != null ? partnerProperties['vehicle_number'] : '';
-        _vehicleType = partnerProperties != null && partnerProperties['vehicle_type'] != null ? partnerProperties['vehicle_type'] : '';
+          _pickupOtp = data['pickup_otp']?.toString();
+          _dropOtp = data['drop_otp']?.toString();
+          _partnerName = partnerProperties != null && partnerProperties['driver_name'] != null ? partnerProperties['driver_name'] : '';
+          _driverPhone = partnerProperties != null && partnerProperties['driver_phone'] != null ? partnerProperties['driver_phone'].toString() : '';
+          _vehicleNumber = partnerProperties != null && partnerProperties['vehicle_number'] != null ? partnerProperties['vehicle_number'] : '';
+          _vehicleType = partnerProperties != null && partnerProperties['vehicle_type'] != null ? partnerProperties['vehicle_type'] : '';
 
-        // Parse pickupLatLng using 'coordinates' if present
-        if (pickupLatLng != null && pickupLatLng['coordinates'] != null) {
-          final coords = pickupLatLng['coordinates'];
-          _pickupLng = coords[0];
-          _pickupLat = coords[1];
-        }
-        // Parse dropLatLng using 'coordinates' if present
-        if (dropLatLng != null && dropLatLng['coordinates'] != null) {
-          final coords = dropLatLng['coordinates'];
-          _dropLng = coords[0];
-          _dropLat = coords[1];
-        }
-        // Parse geometry using 'coordinates'
-        if (geometry != null && geometry['coordinates'] != null) {
-          final coords = geometry['coordinates'];
-          _lng = coords[0];
-          _lat = coords[1];
-        }
+          // Parse pickupLatLng using 'coordinates' if present
+          if (pickupLatLng != null && pickupLatLng['coordinates'] != null) {
+            final coords = pickupLatLng['coordinates'];
+            _pickupLng = coords[0];
+            _pickupLat = coords[1];
+          }
+          // Parse dropLatLng using 'coordinates' if present
+          if (dropLatLng != null && dropLatLng['coordinates'] != null) {
+            final coords = dropLatLng['coordinates'];
+            _dropLng = coords[0];
+            _dropLat = coords[1];
+          }
+          // Parse geometry using 'coordinates'
+          if (geometry != null && geometry['coordinates'] != null) {
+            final coords = geometry['coordinates'];
+            _lng = coords[0];
+            _lat = coords[1];
+          }
 
-        String vehicleEmoji;
-        switch (_vehicleType.toLowerCase()) {
-          case 'bike':
-            vehicleEmoji = '🛵';
-            break;
-          case 'auto':
-            vehicleEmoji = '🚗';
-            break;
-          case 'truck':
-            vehicleEmoji = '🚚';
-            break;
-          default:
-            vehicleEmoji = '🚘';
-        }
-        _driverIcon = await createEmojiMarker(vehicleEmoji);
+          String vehicleEmoji;
+          switch (_vehicleType.toLowerCase()) {
+            case 'bike':
+              vehicleEmoji = '🛵';
+              break;
+            case 'auto':
+              vehicleEmoji = '🚗';
+              break;
+            case 'truck':
+              vehicleEmoji = '🚚';
+              break;
+            default:
+              vehicleEmoji = '🚘';
+          }
+          _driverIcon = await createEmojiMarker(vehicleEmoji);
 
-        // Only call _drawRoute/_drawDropRoute after _driverIcon is initialized
-        if (_driverIcon != null) {
-          if (status == 'arriving') {
-            if (mounted) {
-              setState(() {
-                _isArriving = true;
-                _isLoading = false;
-              });
-            }
-            if (_lat != null && _lng != null && _pickupLat != null && _pickupLng != null) {
-              await _drawRoute();
-            }
-          } else if (status == 'in_transit') {
-            print('🚗 Ride is ongoing');
-            if (mounted) {
-              setState(() {
-                _isArriving = false;
-                _isLoading = false;
-              });
-            }
-            if (_lat != null && _lng != null && _dropLat != null && _dropLng != null) {
-              await _drawDropRoute();
-            }
-          } else if (status == 'completed') {
-            print('✅ Ride completed, navigating to home');
-            _channel?.sink.close();
-            _channel = null;
-            if (mounted) {
-              Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+          // Only call _drawRoute/_drawDropRoute after _driverIcon is initialized
+          if (_driverIcon != null) {
+            if (status == 'arriving') {
+              if (mounted) {
+                setState(() {
+                  _isArriving = true;
+                  _isLoading = false;
+                });
+              }
+              if (_lat != null && _lng != null && _pickupLat != null && _pickupLng != null) {
+                await _drawRoute();
+              }
+            } else if (status == 'in_transit') {
+              print('🚗 Ride is ongoing');
+              if (mounted) {
+                setState(() {
+                  _isArriving = false;
+                  _isLoading = false;
+                });
+              }
+              if (_lat != null && _lng != null && _dropLat != null && _dropLng != null) {
+                await _drawDropRoute();
+              }
+            } else if (status == 'completed') {
+              print('✅ Ride completed, navigating to home');
+              _channel?.sink.close();
+              _channel = null;
+              if (mounted) {
+                Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+              }
             }
           }
+          // --- End logic from _fetchBooking ---
+        } catch (e) {
+          print('❌ Error decoding Booking WebSocket message: $e');
         }
-        // --- End logic from _fetchBooking ---
-      } catch (e) {
-        print('❌ Error decoding Booking WebSocket message: $e');
-      }
-    }, onError: (error) {
-      print('❌ Booking WebSocket error for bookingId $bookingId: $error');
-    }, onDone: () {
-      print('🔌 Booking WebSocket connection done for bookingId: $bookingId');
-      _channel = null;
-      // Only attempt reconnection if the screen is still mounted and active
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted && ModalRoute.of(context)?.isCurrent == true) {
-          print('🔄 Retrying WebSocket connection...');
-          _startBookingWebSocket();
+      }, onError: (error) {
+        print('❌ Booking WebSocket error for bookingId $bookingId: $error');
+        _isConnecting = false;
+        _channel = null;
+        // Only retry if app is active and screen is mounted
+        if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
+          print('🔄 Retrying WebSocket connection in 5 seconds...');
+          Future.delayed(const Duration(seconds: 5), () {
+            if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
+              _startBookingWebSocket();
+            }
+          });
+        }
+      }, onDone: () {
+        print('🔌 Booking WebSocket connection done for bookingId: $bookingId');
+        _isConnecting = false;
+        _channel = null;
+        // Only attempt reconnection if the screen is still mounted and active
+        if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
+          print('🔄 Retrying WebSocket connection in 2 seconds...');
+          Future.delayed(const Duration(seconds: 2), () {
+            if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
+              _startBookingWebSocket();
+            } else {
+              print('🛑 Not retrying WebSocket - app not active or screen not active');
+            }
+          });
         } else {
-          print('🛑 Not retrying WebSocket - screen not active');
+          print('🛑 Not retrying WebSocket - app not active or screen not active');
         }
       });
-    });
+      
+      print('✅ WebSocket connection established successfully');
+    } catch (e) {
+      print('❌ Failed to establish WebSocket connection: $e');
+      _isConnecting = false;
+      _channel = null;
+      // Only retry if app is active
+      if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
+        print('🔄 Retrying WebSocket connection in 5 seconds due to connection error...');
+        Future.delayed(const Duration(seconds: 5), () {
+          if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
+            _startBookingWebSocket();
+          }
+        });
+      }
+    }
   }
 
   // _fetchBooking method removed; logic now handled in _startBookingWebSocket
@@ -355,6 +401,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // _pollingTimer?.cancel();
     _locationUpdateTimer?.cancel();
     // Close the WebSocket when leaving the screen
@@ -364,6 +411,34 @@ class _BookingScreenState extends State<BookingScreen> {
       _channel = null;
     }
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    print('🔄 App lifecycle state changed: $state');
+    
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _isAppActive = true;
+        if (bookingId != null && _channel == null && !_isConnecting) {
+          print('🔄 App resumed, reconnecting WebSocket...');
+          _startBookingWebSocket();
+        }
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+        _isAppActive = false;
+        if (_channel != null) {
+          print('🔄 App backgrounded, closing WebSocket...');
+          _channel?.sink.close();
+          _channel = null;
+        }
+        break;
+      default:
+        break;
+    }
   }
 
   @override
