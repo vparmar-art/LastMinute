@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart' as launcher;
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import '../../constants.dart';
+import '../utils/ride_state_manager.dart';
 
 class DropScreen extends StatefulWidget {
   const DropScreen({super.key});
@@ -17,6 +18,7 @@ class _DropScreenState extends State<DropScreen> {
   double? dropLatitude;
   double? dropLongitude;
   String? dropAddress;
+  String? dropOtp;
 
   @override
   void initState() {
@@ -25,14 +27,72 @@ class _DropScreenState extends State<DropScreen> {
       final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       if (args != null) {
         setState(() {
-          bookingId = args['booking_id'];
-          dropAddress = args['drop_location'];
-          dropLatitude = args['drop_latlng']['lat'] ?? args['drop_latlng']['coordinates'][1];
-          dropLongitude = args['drop_latlng']['lng'] ?? args['drop_latlng']['coordinates'][0];
+          bookingId = args['booking_id'] ?? args['id'];
+          dropAddress = args['drop_location'] ?? args['drop_address'];
+          dropOtp = args['drop_otp'] ?? dropOtp;
+          if (args['drop_latlng'] != null) {
+            dropLatitude = args['drop_latlng']['lat'] ?? args['drop_latlng']['coordinates']?[1];
+            dropLongitude = args['drop_latlng']['lng'] ?? args['drop_latlng']['coordinates']?[0];
+          } else {
+            dropLatitude = args['drop_lat'] ?? dropLatitude;
+            dropLongitude = args['drop_lng'] ?? dropLongitude;
+          }
         });
-        print('📦 DropScreen args: id=$bookingId, dropLat=$dropLatitude, dropLng=$dropLongitude, dropAddress=$dropAddress');
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+    int? bookingId = args?['id'];
+    String? dropAddress = args?['drop_address'];
+    String? dropOtp = args?['drop_otp'];
+    double? dropLat = args?['drop_lat'];
+    double? dropLng = args?['drop_lng'];
+    
+    // Set lat/lng from arguments if provided
+    if (dropLat != null && dropLng != null) {
+      setState(() {
+        dropLatitude = dropLat;
+        dropLongitude = dropLng;
+      });
+    }
+    
+    _restoreRideState(bookingId, dropAddress, dropOtp);
+  }
+
+  Future<void> _restoreRideState(int? bookingId, String? dropAddress, String? dropOtp) async {
+    final rideState = await PartnerRideStateManager.getRideState();
+    if (rideState != null && rideState.isActive && (bookingId == null || rideState.bookingId == bookingId)) {
+      setState(() {
+        // Use arguments if present, else fallback to ride state
+        this.bookingId = rideState.bookingId;
+        this.dropAddress = dropAddress ?? rideState.dropLocation;
+        this.dropOtp = dropOtp ?? rideState.dropOtp;
+        // Restore lat/lng from ride state if not already set
+        if (dropLatitude == null && rideState.dropLat != null) {
+          dropLatitude = rideState.dropLat;
+        }
+        if (dropLongitude == null && rideState.dropLng != null) {
+          dropLongitude = rideState.dropLng;
+        }
+      });
+    }
+  }
+
+  Future<void> _persistRideState(String status) async {
+    final rideState = PartnerRideState(
+      bookingId: bookingId,
+      status: status,
+      dropLocation: dropAddress,
+      dropOtp: dropOtp,
+      dropLat: dropLatitude,
+      dropLng: dropLongitude,
+      lastUpdated: DateTime.now(),
+    );
+    await PartnerRideStateManager.saveRideState(rideState);
   }
 
   void _launchNavigation() async {

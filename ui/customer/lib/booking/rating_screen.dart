@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../constants.dart';
+import '../utils/ride_state_manager.dart';
 
 class RatingScreen extends StatefulWidget {
   final int bookingId;
@@ -58,6 +59,10 @@ class _RatingScreenState extends State<RatingScreen> {
       );
 
       if (response.statusCode == 200) {
+        // Mark rating as submitted and clear ride state
+        await RideStateManager.markRatingSubmitted(widget.bookingId);
+        await RideStateManager.clearRideState();
+        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -266,7 +271,8 @@ class _RatingScreenState extends State<RatingScreen> {
               child: TextButton(
                 onPressed: _isSubmitting
                     ? null
-                    : () {
+                    : () async {
+                        await RideStateManager.clearRideState();
                         Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
                       },
                 child: Text(

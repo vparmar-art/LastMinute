@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/ride_state_manager.dart';
 
 class BookingDetailScreen extends StatefulWidget {
   const BookingDetailScreen({super.key});
@@ -40,7 +41,42 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     final bookingId = args['id'] as int;
+    _restoreRideState(bookingId);
     fetchBookingDetails(bookingId);
+  }
+
+  Future<void> _restoreRideState(int bookingId) async {
+    final rideState = await PartnerRideStateManager.getRideState();
+    if (rideState != null && rideState.isActive && rideState.bookingId == bookingId) {
+      setState(() {
+        // You can restore more fields as needed
+        // For now, just a placeholder for extensibility
+      });
+    }
+  }
+
+  Future<void> _persistRideState(String status) async {
+    if (booking == null) return;
+    
+    // Extract lat/lng from booking data
+    final pickupLatLng = booking?['pickup_latlng']?['coordinates'];
+    final dropLatLng = booking?['drop_latlng']?['coordinates'];
+    
+    final rideState = PartnerRideState(
+      bookingId: booking?['id'],
+      status: status,
+      customerName: booking?['customer_name'],
+      pickupLocation: booking?['pickup_location'],
+      dropLocation: booking?['drop_location'],
+      pickupOtp: booking?['pickup_otp'],
+      dropOtp: booking?['drop_otp'],
+      pickupLat: pickupLatLng != null ? pickupLatLng[1] : null,
+      pickupLng: pickupLatLng != null ? pickupLatLng[0] : null,
+      dropLat: dropLatLng != null ? dropLatLng[1] : null,
+      dropLng: dropLatLng != null ? dropLatLng[0] : null,
+      lastUpdated: DateTime.now(),
+    );
+    await PartnerRideStateManager.saveRideState(rideState);
   }
 
   Future<void> fetchBookingDetails(int id) async {
@@ -104,6 +140,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       if (response.statusCode == 200 || response.statusCode == 204) {
         print('Booking status updated to $status');
         await fetchBookingDetails(bookingId);
+        await _persistRideState(status);
 
         if (status == 'arriving' && mounted) {
           final pickupLatLng = booking?['pickup_latlng']?['coordinates'];

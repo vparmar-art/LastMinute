@@ -11,6 +11,7 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
+import '../utils/ride_state_manager.dart';
 
 class BookingScreen extends StatefulWidget {
   const BookingScreen({super.key});
@@ -71,8 +72,91 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
       bookingId = args?['id'];
       _customerLat = args?['customer_lat'];
       _customerLng = args?['customer_lng'];
+      
+      // If no booking ID from arguments, try to get it from ride state
+      if (bookingId == null) {
+        _getBookingIdFromRideState();
+      } else {
+        // Restore ride state if available
+        _restoreRideState();
+        
+        if (bookingId != null && _channel == null) {
+          _startBookingWebSocket();
+        }
+      }
+    }
+  }
+
+  Future<void> _getBookingIdFromRideState() async {
+    final rideState = await RideStateManager.getRideState();
+    if (rideState != null && rideState.isActive) {
+      setState(() {
+        bookingId = rideState.bookingId;
+      });
+      
+      // Restore ride state and start WebSocket
+      await _restoreRideState();
+      
       if (bookingId != null && _channel == null) {
         _startBookingWebSocket();
+      }
+    }
+  }
+
+  Future<void> _restoreRideState() async {
+    final rideState = await RideStateManager.getRideState();
+    if (rideState != null && rideState.isActive) {
+      // If bookingId is null, use the one from ride state
+      if (bookingId == null) {
+        bookingId = rideState.bookingId;
+      }
+      
+      // Only restore if the booking IDs match or if we don't have a booking ID yet
+      if (bookingId == null || rideState.bookingId == bookingId) {
+        // Restore the ride state
+        setState(() {
+          _partnerName = rideState.driverName ?? '';
+          _driverPhone = rideState.driverPhone ?? '';
+          _vehicleNumber = rideState.vehicleNumber ?? '';
+          _vehicleType = rideState.vehicleType ?? '';
+          _pickupOtp = rideState.pickupOtp;
+          _dropOtp = rideState.dropOtp;
+          
+          // Set appropriate status based on ride state
+          if (rideState.status == 'arriving') {
+            _isArriving = true;
+            _isLoading = false;
+            _rideStatus = 'Driver is arriving...';
+            _showEmergencyButton = true;
+          } else if (rideState.status == 'in_transit') {
+            _isArriving = false;
+            _isLoading = false;
+            _rideStatus = 'Ride in progress...';
+            _showEmergencyButton = true;
+          } else if (rideState.status == 'created') {
+            _isLoading = true;
+            _rideStatus = 'Looking for driver...';
+          }
+        });
+        
+        // If we have driver info, create the vehicle icon
+        if (_vehicleType.isNotEmpty) {
+          String vehicleEmoji;
+          switch (_vehicleType.toLowerCase()) {
+            case 'bike':
+              vehicleEmoji = '🛵';
+              break;
+            case 'auto':
+              vehicleEmoji = '🚗';
+              break;
+            case 'truck':
+              vehicleEmoji = '🚚';
+              break;
+            default:
+              vehicleEmoji = '🚘';
+          }
+          _driverIcon = await createEmojiMarker(vehicleEmoji);
+        }
       }
     }
   }
@@ -88,25 +172,39 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
       _isConnecting = false;
       final channel = _channel!;
       channel.stream.listen((message) async {
-        try {
-          final data = jsonDecode(message);
-          final partner = data['partner_details'];
-          final partnerProperties = partner?['properties'];
-          final pickupLatLng = data['pickup_latlng'];
-          final dropLatLng = data['drop_latlng'];
-          final geometry = partner?['geometry'];
-          final status = data['status'];
-          
-          if (status == 'created' && partner == null) {
-            return;
-          }
+                  try {
+            final data = jsonDecode(message);
+            final partner = data['partner_details'];
+            final partnerProperties = partner?['properties'];
+            final pickupLatLng = data['pickup_latlng'];
+            final dropLatLng = data['drop_latlng'];
+            final geometry = partner?['geometry'];
+            final status = data['status'];
+            
+            if (status == 'created' && partner == null) {
+              return;
+            }
 
-          _pickupOtp = data['pickup_otp']?.toString();
-          _dropOtp = data['drop_otp']?.toString();
-          _partnerName = partnerProperties != null && partnerProperties['driver_name'] != null ? partnerProperties['driver_name'] : '';
-          _driverPhone = partnerProperties != null && partnerProperties['driver_phone'] != null ? partnerProperties['driver_phone'].toString() : '';
-          _vehicleNumber = partnerProperties != null && partnerProperties['vehicle_number'] != null ? partnerProperties['vehicle_number'] : '';
-          _vehicleType = partnerProperties != null && partnerProperties['vehicle_type'] != null ? partnerProperties['vehicle_type'] : '';
+            _pickupOtp = data['pickup_otp']?.toString();
+            _dropOtp = data['drop_otp']?.toString();
+            _partnerName = partnerProperties != null && partnerProperties['driver_name'] != null ? partnerProperties['driver_name'] : '';
+            _driverPhone = partnerProperties != null && partnerProperties['driver_phone'] != null ? partnerProperties['driver_phone'].toString() : '';
+            _vehicleNumber = partnerProperties != null && partnerProperties['vehicle_number'] != null ? partnerProperties['vehicle_number'] : '';
+            _vehicleType = partnerProperties != null && partnerProperties['vehicle_type'] != null ? partnerProperties['vehicle_type'] : '';
+
+            // Save ride state for app resilience
+            final rideState = RideState(
+              bookingId: bookingId,
+              status: status,
+              driverName: _partnerName,
+              vehicleType: _vehicleType,
+              vehicleNumber: _vehicleNumber,
+              driverPhone: _driverPhone,
+              pickupOtp: _pickupOtp,
+              dropOtp: _dropOtp,
+              lastUpdated: DateTime.now(),
+            );
+            await RideStateManager.saveRideState(rideState);
 
           if (pickupLatLng != null && pickupLatLng['coordinates'] != null) {
             final coords = pickupLatLng['coordinates'];
@@ -146,7 +244,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                 setState(() {
                   _isArriving = true;
                   _isLoading = false;
-                  _rideStatus = 'Driver is arriving...';
+                  _rideStatus = 'Driver is arriving';
                   _showEmergencyButton = true;
                 });
               }
@@ -159,7 +257,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                 setState(() {
                   _isArriving = false;
                   _isLoading = false;
-                  _rideStatus = 'Ride in progress...';
+                  _rideStatus = 'Ride in progress';
                   _showEmergencyButton = true;
                 });
               }
@@ -167,19 +265,22 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                 await _drawDropRoute();
                 _startEtaUpdates();
               }
-            } else if (status == 'completed') {
-              _channel?.sink.close();
-              _channel = null;
-              _etaUpdateTimer?.cancel();
-              if (mounted) {
-                setState(() {
-                  _isRideCompleted = true;
-                  _rideStatus = 'Ride completed!';
-                  _showEmergencyButton = false;
-                });
-                _showRideCompletionDialog();
+                          } else if (status == 'completed') {
+                _channel?.sink.close();
+                _channel = null;
+                _etaUpdateTimer?.cancel();
+                if (mounted) {
+                  setState(() {
+                    _isRideCompleted = true;
+                    _rideStatus = 'Ride completed!';
+                    _showEmergencyButton = false;
+                  });
+                  _showRideCompletionDialog();
+                }
+                
+                // Update ride state to completed
+                await RideStateManager.updateRideStatus('completed');
               }
-            }
           }
         } catch (e) {
           // Swallow error
