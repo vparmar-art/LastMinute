@@ -107,11 +107,15 @@ class PartnerVerifyOTPView(APIView):
         device_endpoint_arn = request.data.get('device_endpoint_arn')
         if device_endpoint_arn:
             try:
+                logger.info(f"Registering device for partner {phone_number} with FCM token: {device_endpoint_arn[:20]}...")
                 endpoint_arn = register_device_with_sns(device_endpoint_arn)
                 partner.device_endpoint_arn = endpoint_arn
                 partner.save()
+                logger.info(f"Successfully registered device for partner {phone_number}. Endpoint ARN: {endpoint_arn}")
             except Exception as e:
                 logger.error(f"Failed to register device with SNS for {phone_number}: {str(e)}")
+                # Don't fail the login, just log the error
+                # The partner can still login but won't receive push notifications
 
         return Response({'token': token.key})
 
@@ -193,8 +197,6 @@ class PartnerLocationView(APIView):
 
         latitude = request.data.get('latitude')
         longitude = request.data.get('longitude')
-        print(f'Received coordinates: latitude={latitude}, longitude={longitude}')
-
         if latitude is None or longitude is None:
             return Response({'error': 'Latitude and longitude are required'}, status=400)
 
@@ -204,8 +206,6 @@ class PartnerLocationView(APIView):
             return Response({'error': result['error']}, status=404)
         if result.get('skipped'):
             return Response({'message': result['reason']})
-
-        print('Location updated successfully')
         return Response({'message': 'Location updated successfully'})
 
     def get(self, request):

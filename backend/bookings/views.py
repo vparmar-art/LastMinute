@@ -1,4 +1,5 @@
 import json
+import logging
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
 from rest_framework import status, serializers
@@ -11,6 +12,8 @@ from users.serializers.partner import PartnerSerializer
 from .sns import send_push_notification
 from users.models.token import Token
 import random
+
+logger = logging.getLogger(__name__)
 
 @api_view(['GET', 'POST'])
 def booking_list(request):
@@ -167,7 +170,6 @@ def start_booking(request):
         booking.save()
     else:
         booking.save()
-    print(f"✅ Booking saved with ID: {booking.id}")
 
     # Send push notifications to partners within 10km of pickup location with endpoint ARN
     partners = Partner.objects.exclude(device_endpoint_arn__isnull=True)\
@@ -175,8 +177,10 @@ def start_booking(request):
         .filter(is_live=True, current_location__isnull=False)\
         .annotate(distance=Distance('current_location', booking.pickup_latlng))\
         .filter(distance__lte=10000)  # 10,000 meters = 10 km
+    
+    logger.info(f"Found {partners.count()} partners within 10km of pickup location")
+    
     for partner in partners:
-        print(f"device_endpoint_arn {partner.device_endpoint_arn}")
         payload = {
             "default": "Fallback message",
             "GCM": json.dumps({
@@ -189,14 +193,17 @@ def start_booking(request):
                 }
             })
         }
-        print(f"📦 SNS Payload for {partner.device_endpoint_arn}: {json.dumps(payload)}")
         try:
-            send_push_notification(
+            logger.info(f"Sending notification to partner {partner.id} (phone: {partner.phone_number})")
+            response = send_push_notification(
                 partner.device_endpoint_arn,
                 payload=payload
             )
-        except Exception:
-            continue  # Log or handle failure if needed
+            logger.info(f"Successfully sent notification to partner {partner.id}. Message ID: {response.get('MessageId')}")
+        except Exception as e:
+            logger.error(f"Failed to send notification to partner {partner.id}: {str(e)}")
+            # Continue with other partners even if one fails
+            continue
 
     return Response(BookingSerializer(booking).data, status=status.HTTP_201_CREATED)
 
@@ -261,7 +268,7 @@ def validate_drop_otp(request):
                 partner_wallet.rides_remaining -= 1
                 partner_wallet.save()
         except Exception as e:
-            print(f"⚠️ Error updating partner wallet: {e}")
+            logger.error(f"Error updating partner wallet: {e}")
 
         return Response({
             'success': 'Drop OTP validated successfully',
@@ -269,6 +276,7 @@ def validate_drop_otp(request):
         }, status=status.HTTP_200_OK)
     else:
         return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+
 @api_view(['GET'])
 def booking_full_details(request, booking_id):
     """
@@ -298,3 +306,75 @@ def booking_full_details(request, booking_id):
         data['partner_details'] = None
 
     return Response(data)
+
+@api_view(['POST'])
+def submit_ride_rating(request, booking_id):
+    """
+    Submit rating and review for a completed ride.
+    """
+    try:
+        booking = Booking.objects.get(pk=booking_id)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not booking.is_completed:
+        return Response({'error': 'Can only rate completed rides'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if booking.ride_rating_submitted:
+        return Response({'error': 'Rating already submitted for this ride'}, status=status.HTTP_400_BAD_REQUEST)
+
+    rating = request.data.get('rating')
+    review = request.data.get('review', '')
+
+    if not rating or not isinstance(rating, int) or rating < 1 or rating > 5:
+        return Response({'error': 'Valid rating (1-5) is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    booking.rating = rating
+    booking.review = review
+    booking.ride_rating_submitted = True
+    booking.save()
+
+    # Update partner's average rating
+    if booking.partner:
+        partner = booking.partner
+        partner_ratings = Booking.objects.filter(
+            partner=partner, 
+            rating__isnull=False
+        ).values_list('rating', flat=True)
+        
+        if partner_ratings:
+            avg_rating = sum(partner_ratings) / len(partner_ratings)
+            partner.rating = round(avg_rating, 1)
+            partner.save()
+
+    return Response({
+        'success': 'Rating submitted successfully',
+        'rating': rating,
+        'review': review
+    }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+def report_emergency(request, booking_id):
+    """
+    Report an emergency during a ride.
+    """
+    try:
+        booking = Booking.objects.get(pk=booking_id)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    emergency_type = request.data.get('emergency_type', 'general')
+    description = request.data.get('description', '')
+    customer_location = request.data.get('customer_location')
+
+    booking.emergency_contacted = True
+    booking.customer_feedback = f"Emergency: {emergency_type} - {description}"
+    booking.save()
+
+    # Log emergency for monitoring
+    logger.warning(f"Emergency reported for booking {booking_id}: {emergency_type} - {description}")
+
+    return Response({
+        'success': 'Emergency reported successfully',
+        'message': 'Support team has been notified'
+    }, status=status.HTTP_200_OK)

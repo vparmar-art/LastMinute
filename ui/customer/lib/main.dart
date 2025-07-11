@@ -6,6 +6,7 @@ import 'package_details/package_details.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'booking/booking_screen.dart';
 import 'booking/booking_history.dart';
+import 'booking/rating_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -62,6 +63,15 @@ class MyApp extends StatelessWidget {
         },
         '/booking': (context) => const BookingScreen(),
         '/bookings-list': (context) => const BookingHistoryScreen(),
+        '/rating': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          return RatingScreen(
+            bookingId: args['bookingId'],
+            driverName: args['driverName'],
+            vehicleType: args['vehicleType'],
+            vehicleNumber: args['vehicleNumber'],
+          );
+        },
       },
     );
   }
