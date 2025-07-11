@@ -56,30 +56,38 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       print('Response status: ${response.statusCode}');
       if (response.statusCode == 200) {
         print('Response body: ${response.body}');
-        setState(() {
-          booking = json.decode(response.body);
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            booking = json.decode(response.body);
+            isLoading = false;
+          });
+        }
       } else {
         print('Failed to load booking details: ${response.reasonPhrase}');
+        if (mounted) {
+          setState(() {
+            hasError = true;
+            isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error fetching booking details: $e');
+      if (mounted) {
         setState(() {
           hasError = true;
           isLoading = false;
         });
       }
-    } catch (e) {
-      print('Error fetching booking details: $e');
-      setState(() {
-        hasError = true;
-        isLoading = false;
-      });
     }
   }
 
   Future<void> updateBookingStatus(int bookingId, String status) async {
-    setState(() {
-      isUpdating = true;
-    });
+    if (mounted) {
+      setState(() {
+        isUpdating = true;
+      });
+    }
 
     try {
       final url = Uri.parse('$apiBaseUrl/bookings/$bookingId/status/');
@@ -132,10 +140,12 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
 
         return GestureDetector(
           onHorizontalDragUpdate: (details) {
-            setState(() {
-              _decisionDrag += details.primaryDelta ?? 0;
-              _decisionDrag = _decisionDrag.clamp(-_decisionMaxDrag / 2, _decisionMaxDrag / 2);
-            });
+            if (mounted) {
+              setState(() {
+                _decisionDrag += details.primaryDelta ?? 0;
+                _decisionDrag = _decisionDrag.clamp(-_decisionMaxDrag / 2, _decisionMaxDrag / 2);
+              });
+            }
           },
           onHorizontalDragEnd: (details) async {
             await HapticFeedback.mediumImpact();
@@ -148,9 +158,11 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               // You can add reject API call here
             }
 
-            setState(() {
-              _decisionDrag = 0.0;
-            });
+            if (mounted) {
+              setState(() {
+                _decisionDrag = 0.0;
+              });
+            }
           },
           child: Container(
             height: 60,

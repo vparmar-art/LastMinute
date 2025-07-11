@@ -69,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
       });
       try {
         final data = await _apiService.verifyOtp(phone, otp);
-        print('Login successful. data: $data');
+
 
         // Save token locally
         final prefs = await SharedPreferences.getInstance();

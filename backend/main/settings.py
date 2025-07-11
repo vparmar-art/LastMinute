@@ -13,26 +13,64 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 
+# Try to load environment variables from .env.kms file in project root, fallback to .env
+try:
+    from dotenv import load_dotenv
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    env_kms_path = os.path.join(BASE_DIR, '..', '.env.kms')
+    env_default_path = os.path.join(BASE_DIR, '..', '.env')
+    if os.path.exists(env_kms_path):
+        load_dotenv(dotenv_path=env_kms_path)
+    elif os.path.exists(env_default_path):
+        load_dotenv(dotenv_path=env_default_path)
+    else:
+        load_dotenv()  # fallback to default behavior
+except ImportError:
+    # python-dotenv not installed, continue without it
+    pass
+
+# Import KMS utilities for production
+try:
+    from .kms_utils import get_kms_decryptor
+    KMS_AVAILABLE = True
+except ImportError:
+    KMS_AVAILABLE = False
+
 os.environ['GDAL_LIBRARY_PATH'] = '/opt/homebrew/Cellar/gdal/3.11.0/lib/libgdal.dylib'
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+# BASE_DIR = Path(__file__).resolve().parent.parent
 
+def get_secure_env_var(var_name, default=None):
+    """
+    Get environment variable with KMS decryption support
+    
+    Args:
+        var_name (str): Environment variable name
+        default: Default value if not found
+        
+    Returns:
+        str: Decrypted value or default
+    """
+    if KMS_AVAILABLE:
+        decryptor = get_kms_decryptor()
+        return decryptor.get_decrypted_env_var(var_name, default)
+    else:
+        return os.getenv(var_name, default)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-k3g7t0l_c9r3#2#i62lbiw)=g%kn4+%a8(yi8p&!+n9lyn&%&n'
+SECRET_KEY = get_secure_env_var('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG_VALUE = get_secure_env_var('DEBUG', 'False')
+DEBUG = DEBUG_VALUE.lower() == 'true' if DEBUG_VALUE else False
 
 APPEND_SLASH = False
 
-ALLOWED_HOSTS = [
-    "*"
-]
+ALLOWED_HOSTS = (get_secure_env_var('ALLOWED_HOSTS') or '*').split(',')
 
 
 LOGGING = {
@@ -147,11 +185,11 @@ WSGI_APPLICATION = 'main.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'postgres',
-        'USER': 'vikash',
-        'PASSWORD': 'vikashparmar',
-        'HOST': 'last-minute-dev.cm96escgy66l.us-east-1.rds.amazonaws.com',
-        'PORT': '5432',
+        'NAME': get_secure_env_var('DB_NAME', 'postgres'),
+        'USER': get_secure_env_var('DB_USER', 'vikash'),
+        'PASSWORD': get_secure_env_var('DB_PASSWORD'),
+        'HOST': get_secure_env_var('DB_HOST', 'last-minute-dev.cm96escgy66l.us-east-1.rds.amazonaws.com'),
+        'PORT': get_secure_env_var('DB_PORT', '5432'),
     }
 }
 
@@ -206,16 +244,24 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+# Security Headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-AWS_MEDIA_BUCKET_NAME = 'lastminute-media-root'
+AWS_MEDIA_BUCKET_NAME = get_secure_env_var('AWS_MEDIA_BUCKET_NAME', 'lastminute-media-root')
 MEDIA_URL = f'https://{AWS_MEDIA_BUCKET_NAME}.s3.amazonaws.com/'
 
-AWS_ACCESS_KEY_ID = 'AKIAQZFG5AII5U73LK6Y'
-AWS_SECRET_ACCESS_KEY = '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'
-AWS_STORAGE_BUCKET_NAME = 'zappa-deployments-last-minute'
-AWS_S3_REGION_NAME = 'us-east-1'  # Change if using a different region
+AWS_ACCESS_KEY_ID = get_secure_env_var('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = get_secure_env_var('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = get_secure_env_var('AWS_STORAGE_BUCKET_NAME', 'zappa-deployments-last-minute')
+AWS_S3_REGION_NAME = get_secure_env_var('AWS_S3_REGION_NAME', 'us-east-1')
 AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
-AWS_SNS_ARN = 'arn:aws:sns:us-east-1:054037119505:app/GCM/notify-driver'
+AWS_SNS_ARN = get_secure_env_var('AWS_SNS_ARN', 'arn:aws:sns:us-east-1:054037119505:app/GCM/notify-driver')
 
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 STATIC_URL = '/static/'

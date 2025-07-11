@@ -1,2 +1,8 @@
-const String apiBaseUrl = 'http://192.168.0.101:8000/api';
-const String wsBaseUrl = 'ws://192.168.0.101:8000/ws';
+import 'secrets.dart';
+
+// API Base URLs
+const String apiBaseUrl = Secrets.apiBaseUrl;
+const String wsBaseUrl = Secrets.wsBaseUrl;
+
+// Google Maps API Key
+const String googleMapsApiKey = Secrets.googleMapsApiKey;

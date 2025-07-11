@@ -68,8 +68,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
   }
 
-  print('Background message final title: $title, body: $body');
-
   await flutterLocalNotificationsPlugin.show(
     message.hashCode,
     title ?? 'New Notification',
