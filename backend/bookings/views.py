@@ -182,14 +182,17 @@ def start_booking(request):
     
     for partner in partners:
         payload = {
-            "default": "Fallback message",
+            "default": "Booking request",
             "GCM": json.dumps({
                 "notification": {
-                    "title": "New Booking",
-                    "body": f"Customer Name {booking.customer}"
+                    "title": f"New Booking: {booking.pickup_location} → {booking.drop_location}",
+                    "body": f"Fare: ₹{booking.amount} | Tap to view details"
                 },
                 "data": {
-                    "booking_id": booking.id
+                    "booking_id": booking.id,
+                    "pickup": booking.pickup_location,
+                    "drop": booking.drop_location,
+                    "fare": booking.amount
                 }
             })
         }
