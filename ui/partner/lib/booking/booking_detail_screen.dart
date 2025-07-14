@@ -175,6 +175,10 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       builder: (context, constraints) {
         _decisionMaxDrag = constraints.maxWidth;
 
+        // Calculate normalized drag position (0.0 = left, 1.0 = right, 0.5 = center)
+        final normalized = 0.5 + (_decisionDrag / (_decisionMaxDrag));
+        final gradientCenter = normalized.clamp(0.0, 1.0);
+
         return GestureDetector(
           onHorizontalDragUpdate: (details) {
             if (mounted) {
@@ -209,10 +213,14 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             height: 60,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 colors: [Colors.green, Colors.red],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
+                stops: [
+                  (gradientCenter - 0.2).clamp(0.0, 1.0),
+                  (gradientCenter + 0.2).clamp(0.0, 1.0),
+                ],
               ),
             ),
             child: Stack(
@@ -225,17 +233,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
-                Positioned(
-                  left: 10 + (_decisionDrag > 0 ? _decisionDrag : 0),
-                  child: _buildArrowButton(),
-                ),
-                Positioned(
-                  right: 10 + (_decisionDrag < 0 ? -_decisionDrag : 0),
-                  child: Transform.rotate(
-                    angle: 3.14,
-                    child: _buildArrowButton(),
-                  ),
-                ),
+                // Removed arrow pointers
               ],
             ),
           ),

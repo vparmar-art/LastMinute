@@ -299,41 +299,59 @@ class _HomeScreenState extends State<HomeScreen> {
 
             bool goingLive = _dragPosition > _maxDrag / 2;
 
-            setState(() {
-              _isLoadingProfile = true;
-            });
+            if (goingLive != _isLive) {
+              setState(() {
+                _isLoadingProfile = true;
+              });
 
-            bool success;
-            if (goingLive) {
-              _startBackgroundLocationUpdates();
-              success = await _updateLiveStatus(true);
-            } else {
-              _stopBackgroundLocationUpdates();
-              success = await _updateLiveStatus(false);
-            }
+              bool success;
+              if (goingLive) {
+                _startBackgroundLocationUpdates();
+                success = await _updateLiveStatus(true);
+              } else {
+                _stopBackgroundLocationUpdates();
+                success = await _updateLiveStatus(false);
+              }
 
-            setState(() {
-              _isLoadingProfile = false;
-            });
+              setState(() {
+                _isLoadingProfile = false;
+              });
 
-            if (mounted) {
-              if (success) {
+              if (mounted && success) {
                 setState(() {
                   _isLive = goingLive;
                   _dragPosition = goingLive ? _maxDrag : 0.0;
                 });
-              } else {
+              } else if (mounted) {
                 setState(() {
                   _dragPosition = _isLive ? _maxDrag : 0.0;
                 });
               }
+            } else {
+              // Snap back if no state change
+              setState(() {
+                _dragPosition = _isLive ? _maxDrag : 0.0;
+              });
             }
           },
           child: Container(
             height: 60,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: _isLive ? Colors.red : Colors.green,
+              color: _dragPosition == 0.0
+                  ? Colors.red
+                  : (_dragPosition == _maxDrag ? Colors.green : null),
+              gradient: (_dragPosition != 0.0 && _dragPosition != _maxDrag)
+                  ? LinearGradient(
+                      colors: [Colors.green, Colors.red],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      stops: [
+                        ((_dragPosition / _maxDrag) - 0.2).clamp(0.0, 1.0),
+                        ((_dragPosition / _maxDrag) + 0.2).clamp(0.0, 1.0),
+                      ],
+                    )
+                  : null,
             ),
             child: Stack(
               alignment: Alignment.center,
