@@ -22,23 +22,27 @@ class SideNavigation extends StatelessWidget {
         children: [
           const SizedBox(height: 100),
           // Profile Section
-          GestureDetector(
-            onTap: () => onItemSelected('home'),
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundImage: NetworkImage(
-                    'https://api.dicebear.com/7.x/shapes/png?seed=$customerName',
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(40),
+              onTap: () => onItemSelected('home'),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundImage: NetworkImage(
+                      'https://api.dicebear.com/7.x/shapes/png?seed=$customerName',
+                    ),
+                    backgroundColor: Colors.transparent,
                   ),
-                  backgroundColor: Colors.transparent,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  customerName,
-                  style: AppTextStyles.bold16,
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Text(
+                    customerName,
+                    style: AppTextStyles.bold16,
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 30),

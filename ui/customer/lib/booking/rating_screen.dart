@@ -158,18 +158,22 @@ class _RatingScreenState extends State<RatingScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(5, (index) {
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _rating = index + 1;
-                    });
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Icon(
-                      index < _rating ? Icons.star : Icons.star_border,
-                      size: 40,
-                      color: index < _rating ? AppColors.warning : AppColors.textSecondary,
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: () {
+                      setState(() {
+                        _rating = index + 1;
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Icon(
+                        index < _rating ? Icons.star : Icons.star_border,
+                        size: 40,
+                        color: index < _rating ? AppColors.warning : AppColors.textSecondary,
+                      ),
                     ),
                   ),
                 );
