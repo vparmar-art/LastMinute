@@ -193,6 +193,10 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             } else if (_decisionDrag < -_decisionMaxDrag / 4) {
               print('❌ Booking Rejected');
               // You can add reject API call here
+              await PartnerRideStateManager.clearRideState();
+              if (mounted) {
+                Navigator.pushReplacementNamed(context, '/home');
+              }
             }
 
             if (mounted) {
