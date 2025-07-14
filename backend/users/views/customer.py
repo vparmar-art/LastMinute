@@ -27,10 +27,14 @@ class CustomerSendOTPView(APIView):
         customer, _ = Customer.objects.get_or_create(phone_number=phone_number, defaults={"full_name": ""})
         session_id = request.session.session_key or request.session.save() or request.session.session_key
 
-        otp = CustomerOTP.objects.create(
+        # Store only the latest OTP per customer
+        otp, created = CustomerOTP.objects.update_or_create(
             customer=customer,
-            code=code,
-            session_id=session_id
+            defaults={
+                'code': code,
+                'session_id': session_id,
+                'is_verified': False
+            }
         )
 
         logger.info(f"OTP generated for {phone_number} - {code}")

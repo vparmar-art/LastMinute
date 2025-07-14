@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 
 class SideNavigation extends StatelessWidget {
   final String customerName;
@@ -15,7 +17,7 @@ class SideNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 250,
-      color: Colors.grey[100],
+      color: AppColors.lightGreyBackground,
       child: Column(
         children: [
           const SizedBox(height: 100),
@@ -34,10 +36,7 @@ class SideNavigation extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   customerName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: AppTextStyles.bold16,
                 ),
               ],
             ),
@@ -47,12 +46,18 @@ class SideNavigation extends StatelessWidget {
           // Navigation Items
           ListTile(
             leading: const Icon(Icons.history),
-            title: const Text('History'),
+            title: Text(
+              'History',
+              style: AppTextStyles.buttonText,
+            ),
             onTap: () => onItemSelected('bookings-list'),
           ),
           ListTile(
             leading: const Icon(Icons.support_agent),
-            title: const Text('Support'),
+            title: Text(
+              'Support',
+              style: AppTextStyles.buttonText,
+            ),
             onTap: () async {
             final url = Uri.parse('https://wa.me/918141254708?text=Hi%2C%20I%20need%20help');
             try {
@@ -66,12 +71,18 @@ class SideNavigation extends StatelessWidget {
           ),
           ListTile(
             leading: const Icon(Icons.description),
-            title: const Text('Terms of Use'),
+            title: Text(
+              'Terms of Use',
+              style: AppTextStyles.buttonText,
+            ),
             onTap: () => onItemSelected('terms'),
           ),
           ListTile(
             leading: const Icon(Icons.logout),
-            title: const Text('Logout'),
+            title: Text(
+              'Logout',
+              style: AppTextStyles.buttonText,
+            ),
             onTap: () => onItemSelected('logout'),
           ),
 
@@ -80,7 +91,7 @@ class SideNavigation extends StatelessWidget {
             padding: EdgeInsets.only(bottom: 20),
             child: Text(
               '© 2025 LastMinute',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: AppTextStyles.smallGrey,
             ),
           )
         ],

@@ -8,6 +8,8 @@ import 'api_service.dart';
 import 'widgets/vehicles_part.dart' show VehiclesPart, BookingData;
 import 'dart:async';
 import '../widgets/side_navigation.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 
 class BookingData {
   String? pickupAddress;
@@ -276,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _polylines = [
         Polyline(
           polylineId: const PolylineId("route"),
-          color: Colors.blue,
+          color: AppColors.primary,
           width: 5,
           points: route,
         ),
@@ -317,19 +319,24 @@ class _HomeScreenState extends State<HomeScreen> {
         duration: const Duration(milliseconds: 300),
         height: height,
         child: TextField(
+          style: TextStyle(color: AppColors.textPrimary),
           controller: controller,
           focusNode: focusNode,
           readOnly: _isConfirmed,
-          style: GoogleFonts.manrope(fontSize: 14),
           decoration: InputDecoration(
             hintText: label,
             prefixIcon: const Icon(Icons.search, size: 20),
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             filled: true,
-            fillColor: Colors.grey.shade100,
+            fillColor: AppColors.card,
+            hintStyle: TextStyle(color: AppColors.textSecondary),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.accent),
             ),
           ),
         ),
@@ -342,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
         boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)],
       ),
@@ -368,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
           margin: const EdgeInsets.symmetric(horizontal: 10),
           padding: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.card,
             borderRadius: BorderRadius.circular(16),
             boxShadow: const [
               BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
@@ -385,13 +392,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ElevatedButton(
                     onPressed: _drawRoute,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
+                      backgroundColor: AppColors.accent,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                       minimumSize: const Size(double.infinity, 45),
                     ),
-                    child: const Text("Confirm"),
+                    child: Text("Confirm", style: AppTextStyles.buttonText),
                   ),
                 ),
             ],
@@ -413,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
-        title: Text('Home', style: GoogleFonts.manrope(fontWeight: FontWeight.bold)),
+        title: Text('Home', style: AppTextStyles.headline6),
       ),
       drawer: Drawer(
         child: SideNavigation(
@@ -470,10 +477,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 maxChildSize: 0.85,
                 builder: (context, scrollController) {
                   return Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                      boxShadow: [
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                      boxShadow: const [
                         BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, -2)),
                       ],
                     ),

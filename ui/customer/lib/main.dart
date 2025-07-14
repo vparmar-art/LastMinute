@@ -8,6 +8,7 @@ import 'booking/booking_screen.dart';
 import 'booking/booking_history.dart';
 import 'booking/rating_screen.dart';
 import 'utils/ride_state_manager.dart';
+import 'theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -72,6 +73,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'LastMinute',
       debugShowCheckedModeBanner: false,
+      theme: appTheme,
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),

@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../constants.dart';
 import '../utils/ride_state_manager.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 
 class RatingScreen extends StatefulWidget {
   final int bookingId;
@@ -67,7 +69,7 @@ class _RatingScreenState extends State<RatingScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Thank you for your feedback!'),
-              backgroundColor: Colors.green,
+              backgroundColor: AppColors.success,
             ),
           );
           Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
@@ -78,7 +80,7 @@ class _RatingScreenState extends State<RatingScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(errorData['error'] ?? 'Failed to submit rating'),
-              backgroundColor: Colors.red,
+              backgroundColor: AppColors.error,
             ),
           );
         }
@@ -88,7 +90,7 @@ class _RatingScreenState extends State<RatingScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Network error. Please try again.'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -107,15 +109,11 @@ class _RatingScreenState extends State<RatingScreen> {
       appBar: AppBar(
         title: Text(
           'Rate Your Ride',
-          style: GoogleFonts.manrope(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: AppTextStyles.heading2,
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.background,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: const IconThemeData(color: AppColors.text),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -127,28 +125,22 @@ class _RatingScreenState extends State<RatingScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
+                color: AppColors.primaryLight,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.blue[200]!),
+                border: Border.all(color: AppColors.primaryExtraLight),
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.person, size: 50, color: Colors.blue),
+                  const Icon(Icons.person, size: 50, color: AppColors.primary),
                   const SizedBox(height: 12),
                   Text(
                     widget.driverName,
-                    style: GoogleFonts.manrope(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: AppTextStyles.heading4,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${widget.vehicleType} • ${widget.vehicleNumber}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                    style: AppTextStyles.bodySmall,
                   ),
                 ],
               ),
@@ -158,10 +150,7 @@ class _RatingScreenState extends State<RatingScreen> {
             // Rating section
             Text(
               'How was your ride?',
-              style: GoogleFonts.manrope(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: AppTextStyles.heading3,
             ),
             const SizedBox(height: 16),
             
@@ -180,7 +169,7 @@ class _RatingScreenState extends State<RatingScreen> {
                     child: Icon(
                       index < _rating ? Icons.star : Icons.star_border,
                       size: 40,
-                      color: index < _rating ? Colors.orange : Colors.grey[400],
+                      color: index < _rating ? AppColors.warning : AppColors.textSecondary,
                     ),
                   ),
                 );
@@ -192,10 +181,7 @@ class _RatingScreenState extends State<RatingScreen> {
             Center(
               child: Text(
                 _getRatingText(_rating),
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
+                style: AppTextStyles.bodySmall,
               ),
             ),
             const SizedBox(height: 30),
@@ -203,10 +189,7 @@ class _RatingScreenState extends State<RatingScreen> {
             // Review section
             Text(
               'Tell us more (optional)',
-              style: GoogleFonts.manrope(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTextStyles.heading5,
             ),
             const SizedBox(height: 12),
             
@@ -215,19 +198,19 @@ class _RatingScreenState extends State<RatingScreen> {
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: 'Share your experience...',
-                hintStyle: GoogleFonts.manrope(color: Colors.grey[400]),
+                hintStyle: AppTextStyles.bodySmall,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderSide: BorderSide(color: AppColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.orange, width: 2),
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
                 ),
                 filled: true,
-                fillColor: Colors.grey[50],
+                fillColor: AppColors.backgroundLight,
               ),
-              style: GoogleFonts.manrope(),
+              style: AppTextStyles.body,
             ),
             const SizedBox(height: 40),
             
@@ -238,8 +221,8 @@ class _RatingScreenState extends State<RatingScreen> {
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submitRating,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: AppColors.background,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -250,15 +233,12 @@ class _RatingScreenState extends State<RatingScreen> {
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.background),
                         ),
                       )
                     : Text(
                         'Submit Rating',
-                        style: GoogleFonts.manrope(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: AppTextStyles.buttonText,
                       ),
               ),
             ),
@@ -277,10 +257,7 @@ class _RatingScreenState extends State<RatingScreen> {
                       },
                 child: Text(
                   'Skip for now',
-                  style: GoogleFonts.manrope(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
+                  style: AppTextStyles.buttonText,
                 ),
               ),
             ),

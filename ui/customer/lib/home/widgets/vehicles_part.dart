@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../home/home_screen.dart';
 import '../../constants.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
 
 class VehicleType {
   final String name;
@@ -97,7 +99,7 @@ class _VehiclesPartState extends State<VehiclesPart> {
       icon = Icons.inventory_2; // fallback: delivery box/package
     }
 
-    return Icon(icon, size: 28, color: Colors.deepOrangeAccent);
+    return Icon(icon, size: 28, color: AppColors.accent);
   }
 
   @override
@@ -131,10 +133,10 @@ class _VehiclesPartState extends State<VehiclesPart> {
                 },
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.orange.shade50 : Colors.white,
+                    color: isSelected ? AppColors.primaryLight : Colors.white,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: isSelected ? Colors.orange : Colors.grey.shade200,
+                      color: isSelected ? AppColors.accent : Colors.grey.shade200,
                       width: isSelected ? 2 : 1,
                     ),
                     boxShadow: [
@@ -161,7 +163,7 @@ class _VehiclesPartState extends State<VehiclesPart> {
                             : Container(
                                 height: 56,
                                 width: 56,
-                                color: Colors.orange.shade100,
+                                color: AppColors.primaryExtraLight,
                                 child: Center(child: _getVehicleIcon(vehicle.name)),
                               ),
                       ),
@@ -172,9 +174,10 @@ class _VehiclesPartState extends State<VehiclesPart> {
                           children: [
                             Text(
                               formatVehicleName(vehicle.name),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 16,
+                                color: isSelected ? AppColors.white : AppColors.black,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -182,7 +185,7 @@ class _VehiclesPartState extends State<VehiclesPart> {
                               "Total Fare: ₹${(vehicle.baseFare + vehicle.farePerKm * distanceKm).toStringAsFixed(0)} (${distanceKm.toStringAsFixed(1)} km)",
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Colors.grey.shade700,
+                                color: isSelected ? AppColors.white : AppColors.black,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -190,7 +193,7 @@ class _VehiclesPartState extends State<VehiclesPart> {
                               "${vehicle.capacity} KG capacity",
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade600,
+                                color: isSelected ? AppColors.white : AppColors.black,
                               ),
                             ),
                           ],
@@ -215,9 +218,9 @@ class _VehiclesPartState extends State<VehiclesPart> {
                 },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
-                  backgroundColor: Colors.orange,
+                  backgroundColor: AppColors.accent,
                 ),
-                child: const Text('Add Details'),
+                child: Text('Add Details', style: AppTextStyles.buttonText),
               ),
             ),
           ),

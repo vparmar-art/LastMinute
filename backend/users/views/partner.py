@@ -55,10 +55,14 @@ class PartnerSendOTPView(APIView):
         )
         session_id = request.session.session_key or request.session.save() or request.session.session_key
 
-        PartnerOTP.objects.create(
+        # Store only the latest OTP per partner
+        otp, created = PartnerOTP.objects.update_or_create(
             partner=partner,
-            code=code,
-            session_id=session_id
+            defaults={
+                'code': code,
+                'session_id': session_id,
+                'is_verified': False
+            }
         )
 
         logger.info(f"OTP generated for {phone_number} - {code}")
