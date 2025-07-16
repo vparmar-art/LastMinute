@@ -32,10 +32,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('$usersBaseUrl/customer/send-otp/'),
+        Uri.parse('$usersApiBaseUrl/customer/send-otp/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'phone_number': phone}),
       );
+      print('🔵 Send OTP Response: status: ${response.statusCode}, body: ${response.body}');
 
       if (response.statusCode == 200) {
         setState(() {
@@ -43,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
           _statusMessage = 'OTP sent successfully';
         });
       } else {
-        setState(() => _statusMessage = 'Failed to send OTP');
+        setState(() => _statusMessage = 'Failed to send OTP: ${jsonDecode(response.body)['error'] ?? response.body}');
       }
     } catch (e) {
       setState(() => _statusMessage = 'Error: $e');
@@ -69,10 +70,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('$usersBaseUrl/customer/verify-otp/'),
+        Uri.parse('$usersApiBaseUrl/customer/verify-otp/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'phone_number': phone, 'otp': otp}),
       );
+      print('🟣 Verify OTP Response: status: ${response.statusCode}, body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -84,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/home');
       } else {
-        setState(() => _statusMessage = 'Invalid OTP');
+        setState(() => _statusMessage = 'Invalid OTP: ${jsonDecode(response.body)['error'] ?? response.body}');
       }
     } catch (e) {
       setState(() => _statusMessage = 'Error: $e');

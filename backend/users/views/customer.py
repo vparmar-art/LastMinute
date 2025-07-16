@@ -9,6 +9,7 @@ import random
 import logging
 import uuid
 from users.sns import send_sms
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,8 @@ class CustomerSendOTPView(APIView):
             defaults={
                 'code': code,
                 'session_id': session_id,
-                'is_verified': False
+                'is_verified': False,
+                'created_at': timezone.now()
             }
         )
 
