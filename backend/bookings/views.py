@@ -133,6 +133,10 @@ def start_booking(request):
     except Customer.DoesNotExist:
         return Response({'error': 'Customer not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    # Extract and log vehicle_type
+    vehicle_type = request.data.get('vehicle_type')
+    logger.info(f"Vehicle type requested: {vehicle_type}")
+
     # Create booking with status 'created'
     booking = Booking(
         customer=customer,
@@ -171,25 +175,29 @@ def start_booking(request):
     else:
         booking.save()
 
-    # Send push notifications to partners within 10km of pickup location with endpoint ARN
+    # Send push notifications to partners within 10km of pickup location with endpoint ARN and matching vehicle_type
     partners = Partner.objects.exclude(device_endpoint_arn__isnull=True)\
         .exclude(device_endpoint_arn='')\
         .filter(is_live=True, current_location__isnull=False)\
+        .filter(vehicle_type=vehicle_type)\
         .annotate(distance=Distance('current_location', booking.pickup_latlng))\
         .filter(distance__lte=10000)  # 10,000 meters = 10 km
     
-    logger.info(f"Found {partners.count()} partners within 10km of pickup location")
+    logger.info(f"Found {partners.count()} partners within 10km of pickup location and vehicle_type '{vehicle_type}'")
     
     for partner in partners:
         payload = {
-            "default": "Fallback message",
+            "default": "Booking request",
             "GCM": json.dumps({
                 "notification": {
-                    "title": "New Booking",
-                    "body": f"Customer Name {booking.customer}"
+                    "title": f"New Booking: {booking.pickup_location} → {booking.drop_location}",
+                    "body": f"Fare: ₹{booking.amount} | Tap to view details"
                 },
                 "data": {
-                    "booking_id": booking.id
+                    "booking_id": booking.id,
+                    "pickup": booking.pickup_location,
+                    "drop": booking.drop_location,
+                    "fare": booking.amount
                 }
             })
         }

@@ -23,7 +23,7 @@ from django.http import JsonResponse
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("health/", lambda r: JsonResponse({"ok": True})),
+    path('health/', lambda r: JsonResponse({"ok": True})),
     path('api/hello/', hello),
     path('api/users/', include('users.urls')),
     path('api/vehicles/', include('vehicles.urls')),

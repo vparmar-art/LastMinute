@@ -11,6 +11,9 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
+import '../utils/ride_state_manager.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 
 class BookingScreen extends StatefulWidget {
   const BookingScreen({super.key});
@@ -71,8 +74,91 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
       bookingId = args?['id'];
       _customerLat = args?['customer_lat'];
       _customerLng = args?['customer_lng'];
+      
+      // If no booking ID from arguments, try to get it from ride state
+      if (bookingId == null) {
+        _getBookingIdFromRideState();
+      } else {
+        // Restore ride state if available
+        _restoreRideState();
+        
+        if (bookingId != null && _channel == null) {
+          _startBookingWebSocket();
+        }
+      }
+    }
+  }
+
+  Future<void> _getBookingIdFromRideState() async {
+    final rideState = await RideStateManager.getRideState();
+    if (rideState != null && rideState.isActive) {
+      setState(() {
+        bookingId = rideState.bookingId;
+      });
+      
+      // Restore ride state and start WebSocket
+      await _restoreRideState();
+      
       if (bookingId != null && _channel == null) {
         _startBookingWebSocket();
+      }
+    }
+  }
+
+  Future<void> _restoreRideState() async {
+    final rideState = await RideStateManager.getRideState();
+    if (rideState != null && rideState.isActive) {
+      // If bookingId is null, use the one from ride state
+      if (bookingId == null) {
+        bookingId = rideState.bookingId;
+      }
+      
+      // Only restore if the booking IDs match or if we don't have a booking ID yet
+      if (bookingId == null || rideState.bookingId == bookingId) {
+        // Restore the ride state
+        setState(() {
+          _partnerName = rideState.driverName ?? '';
+          _driverPhone = rideState.driverPhone ?? '';
+          _vehicleNumber = rideState.vehicleNumber ?? '';
+          _vehicleType = rideState.vehicleType ?? '';
+          _pickupOtp = rideState.pickupOtp;
+          _dropOtp = rideState.dropOtp;
+          
+          // Set appropriate status based on ride state
+          if (rideState.status == 'arriving') {
+            _isArriving = true;
+            _isLoading = false;
+            _rideStatus = 'Arriving';
+            _showEmergencyButton = true;
+          } else if (rideState.status == 'in_transit') {
+            _isArriving = false;
+            _isLoading = false;
+            _rideStatus = 'Ride in progress...';
+            _showEmergencyButton = true;
+          } else if (rideState.status == 'created') {
+            _isLoading = true;
+            _rideStatus = 'Looking for driver...';
+          }
+        });
+        
+        // If we have driver info, create the vehicle icon
+        if (_vehicleType.isNotEmpty) {
+          String vehicleEmoji;
+          switch (_vehicleType.toLowerCase()) {
+            case 'bike':
+              vehicleEmoji = '🛵';
+              break;
+            case 'auto':
+              vehicleEmoji = '🚗';
+              break;
+            case 'truck':
+              vehicleEmoji = '🚚';
+              break;
+            default:
+              vehicleEmoji = '🚘';
+          }
+          _driverIcon = await createEmojiMarker(vehicleEmoji);
+        }
       }
     }
   }
@@ -88,25 +174,39 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
       _isConnecting = false;
       final channel = _channel!;
       channel.stream.listen((message) async {
-        try {
-          final data = jsonDecode(message);
-          final partner = data['partner_details'];
-          final partnerProperties = partner?['properties'];
-          final pickupLatLng = data['pickup_latlng'];
-          final dropLatLng = data['drop_latlng'];
-          final geometry = partner?['geometry'];
-          final status = data['status'];
-          
-          if (status == 'created' && partner == null) {
-            return;
-          }
+                  try {
+            final data = jsonDecode(message);
+            final partner = data['partner_details'];
+            final partnerProperties = partner?['properties'];
+            final pickupLatLng = data['pickup_latlng'];
+            final dropLatLng = data['drop_latlng'];
+            final geometry = partner?['geometry'];
+            final status = data['status'];
+            
+            if (status == 'created' && partner == null) {
+              return;
+            }
 
-          _pickupOtp = data['pickup_otp']?.toString();
-          _dropOtp = data['drop_otp']?.toString();
-          _partnerName = partnerProperties != null && partnerProperties['driver_name'] != null ? partnerProperties['driver_name'] : '';
-          _driverPhone = partnerProperties != null && partnerProperties['driver_phone'] != null ? partnerProperties['driver_phone'].toString() : '';
-          _vehicleNumber = partnerProperties != null && partnerProperties['vehicle_number'] != null ? partnerProperties['vehicle_number'] : '';
-          _vehicleType = partnerProperties != null && partnerProperties['vehicle_type'] != null ? partnerProperties['vehicle_type'] : '';
+            _pickupOtp = data['pickup_otp']?.toString();
+            _dropOtp = data['drop_otp']?.toString();
+            _partnerName = partnerProperties != null && partnerProperties['driver_name'] != null ? partnerProperties['driver_name'] : '';
+            _driverPhone = partnerProperties != null && partnerProperties['driver_phone'] != null ? partnerProperties['driver_phone'].toString() : '';
+            _vehicleNumber = partnerProperties != null && partnerProperties['vehicle_number'] != null ? partnerProperties['vehicle_number'] : '';
+            _vehicleType = partnerProperties != null && partnerProperties['vehicle_type'] != null ? partnerProperties['vehicle_type'] : '';
+
+            // Save ride state for app resilience
+            final rideState = RideState(
+              bookingId: bookingId,
+              status: status,
+              driverName: _partnerName,
+              vehicleType: _vehicleType,
+              vehicleNumber: _vehicleNumber,
+              driverPhone: _driverPhone,
+              pickupOtp: _pickupOtp,
+              dropOtp: _dropOtp,
+              lastUpdated: DateTime.now(),
+            );
+            await RideStateManager.saveRideState(rideState);
 
           if (pickupLatLng != null && pickupLatLng['coordinates'] != null) {
             final coords = pickupLatLng['coordinates'];
@@ -146,7 +246,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                 setState(() {
                   _isArriving = true;
                   _isLoading = false;
-                  _rideStatus = 'Driver is arriving...';
+                  _rideStatus = 'Arriving';
                   _showEmergencyButton = true;
                 });
               }
@@ -159,7 +259,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                 setState(() {
                   _isArriving = false;
                   _isLoading = false;
-                  _rideStatus = 'Ride in progress...';
+                  _rideStatus = 'Ride in progress';
                   _showEmergencyButton = true;
                 });
               }
@@ -167,19 +267,22 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                 await _drawDropRoute();
                 _startEtaUpdates();
               }
-            } else if (status == 'completed') {
-              _channel?.sink.close();
-              _channel = null;
-              _etaUpdateTimer?.cancel();
-              if (mounted) {
-                setState(() {
-                  _isRideCompleted = true;
-                  _rideStatus = 'Ride completed!';
-                  _showEmergencyButton = false;
-                });
-                _showRideCompletionDialog();
+                          } else if (status == 'completed') {
+                _channel?.sink.close();
+                _channel = null;
+                _etaUpdateTimer?.cancel();
+                if (mounted) {
+                  setState(() {
+                    _isRideCompleted = true;
+                    _rideStatus = 'Ride completed!';
+                    _showEmergencyButton = false;
+                  });
+                  _showRideCompletionDialog();
+                }
+                
+                // Update ride state to completed
+                await RideStateManager.updateRideStatus('completed');
               }
-            }
           }
         } catch (e) {
           // Swallow error
@@ -271,7 +374,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 50),
+            const Icon(Icons.check_circle, color: AppColors.accent, size: 50),
             const SizedBox(height: 16),
             Text('Thank you for choosing LastMinute!'),
             const SizedBox(height: 8),
@@ -285,7 +388,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
               Navigator.of(context).pop();
               Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
             },
-            child: const Text('Skip'),
+            child: Text('Skip', style: AppTextStyles.buttonText),
           ),
           ElevatedButton(
             onPressed: () {
@@ -302,7 +405,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                 );
               }
             },
-            child: const Text('Rate Your Ride'),
+            child: Text('Rate Your Ride', style: AppTextStyles.buttonText),
           ),
         ],
       ),
@@ -349,7 +452,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel', style: AppTextStyles.buttonText),
           ),
         ],
       ),
@@ -373,7 +476,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
   void _shareLocation() {
     // Implement location sharing functionality
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Location sharing feature coming soon!')),
+      SnackBar(content: Text('Location sharing feature coming soon!', style: AppTextStyles.buttonText)),
     );
   }
 
@@ -406,7 +509,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
     _polylines = [
       Polyline(
         polylineId: const PolylineId('driver_to_pickup'),
-        color: Colors.blue,
+        color: AppColors.primary,
         width: 5,
         points: polylineCoordinates,
       )
@@ -497,7 +600,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
     _polylines = [
       Polyline(
         polylineId: const PolylineId('driver_to_drop'),
-        color: Colors.green,
+        color: AppColors.accent,
         width: 5,
         points: polylineCoordinates,
       )
@@ -579,11 +682,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
         backgroundColor: Colors.white,
         title: Text(
           _isArriving ? 'Driver Arriving' : (_pickupOtp == null ? 'Finding Driver' : 'Ride in Progress'),
-          style: GoogleFonts.manrope(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: AppTextStyles.heading3,
         ),
         iconTheme: const IconThemeData(color: Colors.black),
         actions: [
@@ -602,17 +701,13 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       CircularProgressIndicator(
-                        color: Colors.orange,
+                        color: AppColors.primary,
                         strokeWidth: 4,
                       ),
                       SizedBox(height: 20),
                       Text(
                         'Looking for drivers nearby...',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black54,
-                        ),
+                        style: AppTextStyles.subTitle,
                       ),
                     ],
                   ),
@@ -639,7 +734,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.card,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 15)],
                       ),
@@ -656,29 +751,19 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                                   children: [
                                     Text(
                                       _rideStatus,
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: _isArriving ? Colors.orange : Colors.green,
-                                      ),
+                                      style: AppTextStyles.heading3,
                                     ),
                                     if (_eta.isNotEmpty) ...[
                                       const SizedBox(height: 4),
                                       Text(
                                         'ETA: $_eta',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
-                                        ),
+                                        style: AppTextStyles.eta,
                                       ),
                                     ],
                                     if (_distance.isNotEmpty) ...[
                                       Text(
                                         'Distance: $_distance',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 12,
-                                          color: Colors.grey[500],
-                                        ),
+                                        style: AppTextStyles.distance,
                                       ),
                                     ],
                                   ],
@@ -690,17 +775,11 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                                 children: [
                                   Text(
                                     _partnerName,
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                    style: AppTextStyles.driverName,
                                   ),
                                   Text(
                                     '$_vehicleType • $_vehicleNumber',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
+                                    style: AppTextStyles.vehicleInfo,
                                   ),
                                 ],
                               ),
@@ -712,13 +791,13 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.blue[50],
+                                color: AppColors.primaryLight,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.blue[200]!),
+                                border: Border.all(color: AppColors.primaryExtraLight),
                               ),
                               child: Row(
                                 children: [
-                                  Icon(Icons.key, color: Colors.blue[700], size: 20),
+                                  Icon(Icons.key, color: AppColors.primary, size: 20),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Column(
@@ -726,19 +805,11 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                                       children: [
                                         Text(
                                           _isArriving ? 'Pickup OTP' : 'Drop OTP',
-                                          style: GoogleFonts.manrope(
-                                            fontSize: 12,
-                                            color: Colors.blue[700],
-                                            fontWeight: FontWeight.w500,
-                                          ),
+                                          style: AppTextStyles.otpLabel,
                                         ),
                                         Text(
                                           _isArriving ? _pickupOtp! : _dropOtp!,
-                                          style: GoogleFonts.manrope(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.blue[700],
-                                          ),
+                                          style: AppTextStyles.otpValue,
                                         ),
                                       ],
                                     ),
@@ -761,9 +832,9 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                                     }
                                   },
                                   icon: const Icon(Icons.phone),
-                                  label: Text('Call Driver', style: GoogleFonts.manrope()),
+                                  label: Text('Call Driver', style: AppTextStyles.callDriverButton),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.orange,
+                                    backgroundColor: AppColors.primary,
                                     foregroundColor: Colors.white,
                                     minimumSize: const Size(double.infinity, 48),
                                     shape: RoundedRectangleBorder(
@@ -778,13 +849,13 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                                   onPressed: () {
                                     // Share ride details
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Sharing ride details...')),
+                                      SnackBar(content: Text('Sharing ride details...', style: AppTextStyles.buttonText)),
                                     );
                                   },
                                   icon: const Icon(Icons.share),
-                                  label: Text('Share', style: GoogleFonts.manrope()),
+                                  label: Text('Share', style: AppTextStyles.shareButton),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.grey[200],
+                                    backgroundColor: AppColors.greyExtraLight,
                                     foregroundColor: Colors.black87,
                                     minimumSize: const Size(double.infinity, 48),
                                     shape: RoundedRectangleBorder(

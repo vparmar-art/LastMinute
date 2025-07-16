@@ -4,6 +4,7 @@ import '../constants.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart' as launcher;
 import 'package:geolocator/geolocator.dart';
+import '../utils/ride_state_manager.dart';
 
 class PickupScreen extends StatefulWidget {
   const PickupScreen({super.key});
@@ -17,6 +18,7 @@ class _PickupScreenState extends State<PickupScreen> {
   double? pickupLatitude;
   double? pickupLongitude;
   String? pickupAddress;
+  String? pickupOtp;
 
   @override
   void initState() {
@@ -30,9 +32,81 @@ class _PickupScreenState extends State<PickupScreen> {
           pickupLongitude = args['pickup_lng'];
           pickupAddress = args['pickup_address'];
         });
-        print('📦 PickupScreen args: id=$pickupBookingId, pickupLatitude=$pickupLatitude, pickupLongitude=$pickupLongitude, pickupAddress=$pickupAddress');
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+    
+    int? bookingId = args?['id'];
+    String? pickupAddress = args?['pickup_address'];
+    String? pickupOtp = args?['pickup_otp'];
+    double? pickupLat = args?['pickup_lat'];
+    double? pickupLng = args?['pickup_lng'];
+    
+    // Set lat/lng from arguments if provided
+    if (pickupLat != null && pickupLng != null) {
+      setState(() {
+        pickupLatitude = pickupLat;
+        pickupLongitude = pickupLng;
+      });
+    }
+    
+    _restoreRideState(bookingId, pickupAddress, pickupOtp);
+  }
+
+  Future<void> _restoreRideState(int? bookingId, String? pickupAddress, String? pickupOtp) async {
+    final rideState = await PartnerRideStateManager.getRideState();
+    
+    if (rideState != null && rideState.isActive && (bookingId == null || rideState.bookingId == bookingId)) {
+      setState(() {
+        // Use arguments if present, else fallback to ride state
+        this.pickupBookingId = rideState.bookingId;
+        this.pickupAddress = pickupAddress ?? rideState.pickupLocation;
+        this.pickupOtp = pickupOtp ?? rideState.pickupOtp;
+        // Restore lat/lng from ride state if not already set
+        if (pickupLatitude == null && rideState.pickupLat != null) {
+          pickupLatitude = rideState.pickupLat;
+        }
+        if (pickupLongitude == null && rideState.pickupLng != null) {
+          pickupLongitude = rideState.pickupLng;
+        }
+      });
+    }
+  }
+
+  Future<void> _persistRideState(String status) async {
+    // Use booking details from your state
+    final rideState = PartnerRideState(
+      bookingId: pickupBookingId!,
+      status: status,
+      // Add other fields as needed
+      lastUpdated: DateTime.now(),
+    );
+    await PartnerRideStateManager.saveRideState(rideState);
+  }
+
+  Future<void> _persistRideStateInTransit({
+    required int bookingId,
+    required String? dropAddress,
+    required String? dropOtp,
+    required double? dropLat,
+    required double? dropLng,
+  }) async {
+    
+    final rideState = PartnerRideState(
+      bookingId: bookingId,
+      status: 'in_transit',
+      dropLocation: dropAddress,
+      dropOtp: dropOtp,
+      dropLat: dropLat,
+      dropLng: dropLng,
+      lastUpdated: DateTime.now(),
+    );
+    await PartnerRideStateManager.saveRideState(rideState);
   }
 
   void _launchNavigation() async {
@@ -50,13 +124,11 @@ class _PickupScreenState extends State<PickupScreen> {
 
   void _checkIfArrived() async {
     if (pickupLatitude == null || pickupLongitude == null) {
-      print('❌ Cannot check arrival: pickupLatitude or pickupLongitude is null');
       return;
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
-      print('⚠️ Location permission is denied');
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
@@ -68,8 +140,6 @@ class _PickupScreenState extends State<PickupScreen> {
       pickupLatitude!,
       pickupLongitude!,
     );
-
-    print('📍 Distance to pickup: $distance meters');
 
     if (distance < 150) {
       _showOtpDialog();
@@ -109,9 +179,6 @@ class _PickupScreenState extends State<PickupScreen> {
                   return;
                 }
 
-                // Only close the dialog after successful verification
-
-                print('✅ OTP entered: $enteredOtp');
                 try {
                   final response = await http.post(
                     Uri.parse('$apiBaseUrl/bookings/validate-pickup-otp/'),
@@ -123,9 +190,23 @@ class _PickupScreenState extends State<PickupScreen> {
                   );
 
                   if (response.statusCode == 200) {
-                    print('🔁 OTP Validation Response: ${response.statusCode}');
-                    print('🔁 Response Body: ${response.body}');
                     final responseData = jsonDecode(response.body);
+                    
+                    // Extract drop details
+                    final dropAddress = responseData['drop_location'];
+                    final dropOtp = responseData['drop_otp'];
+                    final dropLatLng = responseData['drop_latlng'];
+                    final dropLat = dropLatLng?['lat'] ?? dropLatLng?['coordinates']?[1];
+                    final dropLng = dropLatLng?['lng'] ?? dropLatLng?['coordinates']?[0];
+                    
+                    // Persist all drop details in ride state
+                    await _persistRideStateInTransit(
+                      bookingId: pickupBookingId!,
+                      dropAddress: dropAddress,
+                      dropOtp: dropOtp,
+                      dropLat: dropLat,
+                      dropLng: dropLng,
+                    );
                     Navigator.pushNamed(
                       context,
                       '/drop',
@@ -133,6 +214,7 @@ class _PickupScreenState extends State<PickupScreen> {
                         'booking_id': pickupBookingId,
                         'drop_location': responseData['drop_location'],
                         'drop_latlng': responseData['drop_latlng'],
+                        'drop_otp': responseData['drop_otp'],
                       },
                     );
                   } else {
@@ -148,7 +230,6 @@ class _PickupScreenState extends State<PickupScreen> {
                       const SnackBar(content: Text('❌ Error validating OTP')),
                     );
                   }
-                  print('Error: $e');
                 }
               },
               child: const Text('Submit'),

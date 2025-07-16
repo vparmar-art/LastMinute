@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../home/home_screen.dart';
 import '../../constants.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
 
 class VehicleType {
   final String name;
@@ -97,7 +99,7 @@ class _VehiclesPartState extends State<VehiclesPart> {
       icon = Icons.inventory_2; // fallback: delivery box/package
     }
 
-    return Icon(icon, size: 28, color: Colors.deepOrangeAccent);
+    return Icon(icon, size: 28, color: AppColors.accent);
   }
 
   @override
@@ -120,83 +122,89 @@ class _VehiclesPartState extends State<VehiclesPart> {
               final vehicle = vehicleTypes[index];
               final isSelected = index == selectedIndex;
 
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedIndex = index;
-                    widget.bookingData.selectedVehicleType = vehicle.name;
-                    widget.bookingData.capacityKg = vehicle.capacity;
-                    widget.bookingData.totalFare = (vehicle.baseFare + vehicle.farePerKm * distanceKm).round();
-                  });
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isSelected ? Colors.orange.shade50 : Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: isSelected ? Colors.orange : Colors.grey.shade200,
-                      width: isSelected ? 2 : 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+              return Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(24),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(24),
+                  onTap: () {
+                    setState(() {
+                      selectedIndex = index;
+                      widget.bookingData.selectedVehicleType = vehicle.name;
+                      widget.bookingData.capacityKg = vehicle.capacity;
+                      widget.bookingData.totalFare = (vehicle.baseFare + vehicle.farePerKm * distanceKm).round();
+                    });
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.primaryLight : Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: isSelected ? AppColors.accent : Colors.grey.shade200,
+                        width: isSelected ? 2 : 1,
                       ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: vehicle.imageUrl.isNotEmpty
-                            ? Image.network(
-                                vehicle.imageUrl,
-                                height: 56,
-                                width: 56,
-                                fit: BoxFit.cover,
-                              )
-                            : Container(
-                                height: 56,
-                                width: 56,
-                                color: Colors.orange.shade100,
-                                child: Center(child: _getVehicleIcon(vehicle.name)),
-                              ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              formatVehicleName(vehicle.name),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "Total Fare: ₹${(vehicle.baseFare + vehicle.farePerKm * distanceKm).toStringAsFixed(0)} (${distanceKm.toStringAsFixed(1)} km)",
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              "${vehicle.capacity} KG capacity",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
-                      )
-                    ],
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: vehicle.imageUrl.isNotEmpty
+                              ? Image.network(
+                                  vehicle.imageUrl,
+                                  height: 56,
+                                  width: 56,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  height: 56,
+                                  width: 56,
+                                  color: AppColors.primaryExtraLight,
+                                  child: Center(child: _getVehicleIcon(vehicle.name)),
+                                ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                formatVehicleName(vehicle.name),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                  color: isSelected ? AppColors.white : AppColors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Total Fare: ₹${(vehicle.baseFare + vehicle.farePerKm * distanceKm).toStringAsFixed(0)} (${distanceKm.toStringAsFixed(1)} km)",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isSelected ? AppColors.white : AppColors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "${vehicle.capacity} KG capacity",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isSelected ? AppColors.white : AppColors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -215,9 +223,9 @@ class _VehiclesPartState extends State<VehiclesPart> {
                 },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
-                  backgroundColor: Colors.orange,
+                  backgroundColor: AppColors.accent,
                 ),
-                child: const Text('Add Details'),
+                child: Text('Add Details', style: AppTextStyles.buttonText),
               ),
             ),
           ),

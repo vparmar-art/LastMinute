@@ -15,6 +15,7 @@ import 'booking/booking_detail_screen.dart';
 import 'booking/pickup_details_screen.dart';
 import 'booking/drop_details_screen.dart';
 import 'wallet/recharge_screen.dart';
+import 'utils/ride_state_manager.dart';
 
 Future<bool> requestLocationPermissions() async {
   var status = await Permission.location.status;
@@ -35,9 +36,7 @@ Future<bool> requestLocationPermissions() async {
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void onDidReceiveNotificationResponse(NotificationResponse response) {
-  print('🔔 Notification tapped: ${response.payload}, Action ID: ${response.actionId}');
   final bookingId = int.tryParse(response.payload?.split('=').last ?? '');
-  print('📦 Extracted booking ID from payload: $bookingId');
   if (bookingId != null) {
     navigatorKey.currentState?.pushNamed('/booking-detail', arguments: {'id': bookingId});
   }
@@ -47,9 +46,17 @@ void onDidReceiveNotificationResponse(NotificationResponse response) {
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 
-  print('📨 Full background message: ${jsonEncode(message.data)}');
   final bookingId = message.data['booking_id'];
-  print('📨 Received booking_id from SNS: $bookingId');
+
+  // Save ride state in background
+  final prefs = await SharedPreferences.getInstance();
+  final rideState = {
+    'bookingId': int.tryParse(bookingId ?? ''),
+    'status': 'created',
+    'lastUpdated': DateTime.now().toIso8601String(),
+    // Add more fields if you can extract them from the message
+  };
+  await prefs.setString('current_partner_ride_state', jsonEncode(rideState));
 
   String? title = message.notification?.title;
   String? body = message.notification?.body;
@@ -64,9 +71,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       title = notification?['title'] ?? title;
       body = notification?['body'] ?? body;
     } catch (e) {
-      print('❌ Failed to parse notification: $e');
+      // print('❌ Failed to parse notification: $e');
     }
   }
+
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   await flutterLocalNotificationsPlugin.show(
     message.hashCode,
@@ -92,8 +101,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     ),
     payload: 'booking_id=${bookingId ?? ''}',
   );
-
-  print('🔔 Handling a background message: ${message.messageId}, title: $title, body: $body');
 }
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -103,11 +110,18 @@ Future<void> main() async {
   await Firebase.initializeApp();
   bool locationGranted = await requestLocationPermissions();
   if (!locationGranted) {
-    print('⚠️ Location permissions not granted.');
+    // print('⚠️ Location permissions not granted.');
     // Optionally handle permission denial here
   } else {
-    print('✅ Location permissions granted.');
+    // print('✅ Location permissions granted.');
   }
+
+  // SharedPreferences persistence test
+  final prefs = await SharedPreferences.getInstance();
+  // Print the value before writing
+  // print('Test key before writing: ${prefs.getString('test_key')}');
+  await prefs.setString('test_key', 'test_value');
+  // print('Test key after writing: ${prefs.getString('test_key')}');
 
 const AndroidInitializationSettings initializationSettingsAndroid =
     AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -138,17 +152,17 @@ const AndroidInitializationSettings initializationSettingsAndroid =
     badge: true,
     sound: true,
   );
-  print('🔐 Notification permission status: ${settings.authorizationStatus}');
+  // print('🔐 Notification permission status: ${settings.authorizationStatus}');
 
   String? fcmToken = await FirebaseMessaging.instance.getToken();
-  print('FCM Token: $fcmToken');
+  // print('FCM Token: $fcmToken');
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-    print('📨 Full foreground message: ${jsonEncode(message.data)}');
+    // print('📨 Full foreground message: ${jsonEncode(message.data)}');
     final rawPayload = message.data['default'];
-    print('📥 Foreground message received: $rawPayload');
+    // print('📥 Foreground message received: $rawPayload');
 
     String? title = message.notification?.title;
     String? body = message.notification?.body;
@@ -167,7 +181,7 @@ const AndroidInitializationSettings initializationSettingsAndroid =
           bookingId = int.tryParse(gcmData['data']['booking_id'].toString());
         }
       } catch (e) {
-        print('❌ Failed to parse notification: $e');
+        // print('❌ Failed to parse notification: $e');
       }
     } else if (message.data['booking_id'] != null) {
       bookingId = int.tryParse(message.data['booking_id'].toString());
@@ -191,6 +205,14 @@ const AndroidInitializationSettings initializationSettingsAndroid =
     );
 
     if (bookingId != null) {
+      // Save ride state when notification is received
+      final rideState = PartnerRideState(
+        bookingId: bookingId,
+        status: 'created', // Default status for new booking
+        lastUpdated: DateTime.now(),
+      );
+      await PartnerRideStateManager.saveRideState(rideState);
+      
       navigatorKey.currentState?.pushNamed('/booking-detail', arguments: {'id': bookingId});
     }
   });
@@ -215,9 +237,27 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _checkLoginStatus() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
+    // print('🚀 SplashScreen: Token found: ${token != null && token.isNotEmpty}');
+    
     if (token != null && token.isNotEmpty) {
-      Navigator.pushReplacementNamed(context, '/home');
+      // Check if there's an active ride
+      // print('🚀 SplashScreen: Calling getInitialRouteWithArgs()...');
+      final routeInfo = await PartnerRideStateManager.getInitialRouteWithArgs();
+      // print('🚀 SplashScreen: Route info: $routeInfo');
+      
+      if (routeInfo != null) {
+        // print('🚀 SplashScreen: Navigating to ${routeInfo['route']}');
+        Navigator.pushReplacementNamed(
+          context,
+          routeInfo['route'],
+          arguments: routeInfo['arguments'],
+        );
+      } else {
+        // print('🚀 SplashScreen: No route info, going to home');
+        Navigator.pushReplacementNamed(context, '/home');
+      }
     } else {
+      // print('🚀 SplashScreen: No token, going to login');
       Navigator.pushReplacementNamed(context, '/login');
     }
   }

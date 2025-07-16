@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -115,7 +117,7 @@ void _startCooldownTimer() {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xfff5f7fa),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -128,19 +130,16 @@ void _startCooldownTimer() {
                   Text(
                     'Welcome to LastMinute 🚚',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.manrope(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: AppTextStyles.heading,
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
                     width: 240,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.card,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade400),
+                        border: Border.all(color: AppColors.border),
                       ),
                       child: Row(
                         children: [
@@ -149,17 +148,14 @@ void _startCooldownTimer() {
                               padding: const EdgeInsets.symmetric(horizontal: 12),
                               child: Text(
                                 '+91',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: AppTextStyles.phoneCode,
                               ),
                             ),
                           ),
                           Container(
                             width: 1,
                             height: 48,
-                            color: Colors.grey.shade300,
+                            color: AppColors.border,
                           ),
                           Expanded(
                             child: Stack(
@@ -172,15 +168,9 @@ void _startCooldownTimer() {
                                     FilteringTextInputFormatter.digitsOnly,
                                     LengthLimitingTextInputFormatter(10),
                                   ],
-                                  cursorColor: Colors.black,
+                                  cursorColor: AppColors.text,
                                   enableInteractiveSelection: false,
-                                  style: const TextStyle(
-                                    color: Colors.transparent,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w500,
-                                    fontFamily: 'Courier',
-                                    letterSpacing: 1.6,
-                                  ),
+                                  style: AppTextStyles.maskedInput,
                                   decoration: const InputDecoration(
                                     isDense: true,
                                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
@@ -213,23 +203,11 @@ void _startCooldownTimer() {
                                             children: [
                                               TextSpan(
                                                 text: input,
-                                                style: const TextStyle(
-                                                  color: Colors.black,
-                                                  fontSize: 20,
-                                                  fontWeight: FontWeight.w700,
-                                                  fontFamily: 'Courier',
-                                                  letterSpacing: 1.6,
-                                                ),
+                                                style: AppTextStyles.maskedInput,
                                               ),
                                               TextSpan(
                                                 text: 'X' * remaining,
-                                                style: TextStyle(
-                                                  color: Colors.grey[300],
-                                                  fontSize: 20,
-                                                  fontWeight: FontWeight.w500,
-                                                  fontFamily: 'Courier',
-                                                  letterSpacing: 1.6,
-                                                ),
+                                                style: AppTextStyles.maskedInput,
                                               ),
                                             ],
                                           ),
@@ -262,7 +240,7 @@ void _startCooldownTimer() {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: AppColors.card,
                           counterText: '',
                         ),
                         onChanged: (_) {
@@ -277,7 +255,7 @@ void _startCooldownTimer() {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Text(
                         _error!,
-                        style: const TextStyle(color: Colors.red),
+                        style: AppTextStyles.errorText,
                       ),
                     ),
                   SizedBox(
@@ -285,21 +263,17 @@ void _startCooldownTimer() {
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : (_otpSent ? _verifyOtp : _sendOtp),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xff1e88e5),
+                        backgroundColor: AppColors.accent,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
+                          ? const CircularProgressIndicator(color: AppColors.white)
                           : Text(
                               _otpSent ? 'Verify OTP' : 'Send OTP',
-                              style: GoogleFonts.manrope(
-                                fontSize: 16,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: AppTextStyles.buttonText,
                             ),
                     ),
                   ),
@@ -311,7 +285,7 @@ void _startCooldownTimer() {
                   if (_otpSent && _resendCooldown == 0)
                     TextButton(
                       onPressed: _sendOtp,
-                      child: const Text('Resend OTP'),
+                      child: Text('Resend OTP', style: AppTextStyles.buttonText),
                     ),
                 ],
               ),

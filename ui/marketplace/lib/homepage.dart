@@ -24,7 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fetchProducts() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/products/'));
+      final response = await http.get(Uri.parse('$apiBaseUrl/products/'));
       if (response.statusCode == 200) {
         setState(() {
           _products = jsonDecode(response.body);
@@ -99,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         child: Image.network(
                                           product['image'].toString().startsWith('https')
                                               ? product['image']
-                                              : '${mediaRootBaseUrl}${product['image']}',
+                                              : '${apiBaseUrl}${product['image']}',
                                           fit: BoxFit.contain,
                                           alignment: Alignment.center,
                                           errorBuilder: (context, error, stackTrace) =>

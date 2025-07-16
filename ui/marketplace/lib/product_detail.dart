@@ -27,7 +27,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Future<void> _fetchProduct() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/products/${widget.productId}/'));
+      final response = await http.get(Uri.parse('$apiBaseUrl/products/${widget.productId}/'));
       if (response.statusCode == 200) {
         setState(() {
           _product = jsonDecode(response.body);
@@ -61,7 +61,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           child: Image.network(
                             _product!['image'].toString().startsWith('https')
                                 ? _product!['image']
-                                : '${mediaRootBaseUrl}${_product!['image']}',
+                                : '${apiBaseUrl}${_product!['image']}',
                             height: 200,
                           ),
                         ),
@@ -110,7 +110,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                           onPressed: () async {
-                            final url = Uri.parse('$baseUrl/orders/');
+                            final url = Uri.parse('$apiBaseUrl/orders/');
                             try {
                               final response = await http.post(
                                 url,
