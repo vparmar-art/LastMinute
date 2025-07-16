@@ -61,7 +61,8 @@ class PartnerSendOTPView(APIView):
             defaults={
                 'code': code,
                 'session_id': session_id,
-                'is_verified': False
+                'is_verified': False,
+                'created_at': timezone.now()
             }
         )
 
