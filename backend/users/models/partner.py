@@ -9,7 +9,7 @@ class Partner(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     owner_full_name = models.CharField(max_length=100, blank=True)
-    vehicle_type = models.CharField(max_length=50, choices=VehicleType.VEHICLE_CHOICES, null=True, blank=True, default=None)
+    vehicle_type = models.ForeignKey(VehicleType, on_delete=models.SET_NULL, null=True, blank=True, related_name='partners')
     vehicle_number = models.CharField(max_length=50, blank=True)
     registration_number = models.CharField(max_length=50, blank=True)
     driver_name = models.CharField(max_length=100, blank=True)

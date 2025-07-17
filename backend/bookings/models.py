@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.gis.db import models as gis_models
 from users.models import Partner, Customer
 from django.utils import timezone
+from vehicles.models import VehicleType
 
 # Create your models here.
 
@@ -37,6 +38,13 @@ class Booking(models.Model):
     drop_otp = models.CharField(max_length=4, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
+    vehicle_type = models.ForeignKey(VehicleType, on_delete=models.PROTECT, related_name='bookings', null=True, blank=True)
+    BOOKING_TYPE_CHOICES = [
+        ('immediate', 'Immediate'),
+        ('scheduled', 'Scheduled'),
+    ]
+    booking_type = models.CharField(max_length=20, choices=BOOKING_TYPE_CHOICES, default='immediate')
+    scheduled_time = models.DateTimeField(null=True, blank=True)
     
     # Enhanced ride experience fields
     rating = models.IntegerField(blank=True, null=True, choices=[
