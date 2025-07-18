@@ -65,22 +65,36 @@ void onStart(ServiceInstance service) async {
 
 void _connectWebSocketWithRetry(int partnerId) async {
   const retryDelay = Duration(seconds: 5);
+  const minDistance = 10.0; // meters
+
+  double? lastLat;
+  double? lastLng;
 
   while (true) {
+    Timer? locationTimer;
     try {
       final channel = WebSocketChannel.connect(
         Uri.parse('$wsBaseUrl/users/partner/$partnerId/location/'),
       );
 
-      Timer.periodic(const Duration(seconds: 15), (timer) async {
+      locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
         try {
           Position position = await Geolocator.getCurrentPosition();
-          print("📍 Periodic position: ${position.latitude}, ${position.longitude}");
-          channel.sink.add(jsonEncode({
-            'lat': position.latitude,
-            'lng': position.longitude,
-          }));
-          print('📡 Location sent via WebSocket');
+          double lat = position.latitude;
+          double lng = position.longitude;
+
+          if (lastLat == null || lastLng == null ||
+              Geolocator.distanceBetween(lastLat!, lastLng!, lat, lng) >= minDistance) {
+            channel.sink.add(jsonEncode({
+              'lat': lat,
+              'lng': lng,
+            }));
+            print('📡 Location sent via WebSocket');
+            lastLat = lat;
+            lastLng = lng;
+          } else {
+            print('🛑 Partner has not moved enough, not sending update.');
+          }
         } catch (e) {
           print("⚠️ Error getting location or sending via WebSocket: $e");
         }
@@ -90,6 +104,9 @@ void _connectWebSocketWithRetry(int partnerId) async {
       print("🔌 WebSocket disconnected. Retrying...");
     } catch (e) {
       print("❌ WebSocket connection failed: $e");
+    } finally {
+      // Cancel the timer before retrying
+      locationTimer?.cancel();
     }
 
     await Future.delayed(retryDelay);
