@@ -196,7 +196,8 @@ def start_booking(request):
                 "GCM": json.dumps({
                     "notification": {
                         "title": f"New Booking: {booking.pickup_location} → {booking.drop_location}",
-                        "body": f"Fare: ₹{booking.amount} | Tap to view details"
+                        "body": f"Fare: ₹{booking.amount} | Tap to view details",
+                        "sound": "notification_alert"
                     },
                     "data": {
                         "booking_id": booking.id,

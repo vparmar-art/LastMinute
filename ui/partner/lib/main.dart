@@ -89,6 +89,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         importance: Importance.max,
         priority: Priority.high,
         playSound: true,
+        sound: RawResourceAndroidNotificationSound('notification_alert'), // custom sound
         ticker: 'ticker',
         actions: <AndroidNotificationAction>[
           AndroidNotificationAction(
@@ -141,6 +142,7 @@ const AndroidInitializationSettings initializationSettingsAndroid =
     description: 'Notifications shown over other apps',
     importance: Importance.max,
     playSound: true,
+    sound: RawResourceAndroidNotificationSound('notification_alert'), // custom sound
   );
 
   await flutterLocalNotificationsPlugin
@@ -199,6 +201,7 @@ const AndroidInitializationSettings initializationSettingsAndroid =
           importance: Importance.max,
           priority: Priority.high,
           playSound: true,
+          sound: RawResourceAndroidNotificationSound('notification_alert'), // custom sound
         ),
       ),
       payload: 'booking_id=${bookingId ?? ''}',

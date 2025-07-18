@@ -17,6 +17,9 @@
         android:fullBackupContent="true"
         android:theme="@style/LaunchTheme"
         android:enableOnBackInvokedCallback="true">
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="high_priority_channel" />
         <service
         android:name="id.flutter.flutter_background_service.BackgroundService"
         android:exported="false"
