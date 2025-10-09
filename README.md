@@ -2,6 +2,52 @@
 
 A comprehensive multi-platform transportation and marketplace application built with Django and Flutter.
 
+## 📖 About LastMinute
+
+**LastMinute** is an innovative multi-service platform that combines on-demand transportation with a marketplace ecosystem, designed to provide seamless and secure experiences for customers, partners (drivers), and sellers.
+
+### 🎯 Vision
+To create a unified platform where users can access transportation services and marketplace functionality, all while ensuring the highest standards of safety, reliability, and user experience.
+
+### 🌟 What Makes LastMinute Unique
+
+**Multi-Service Platform**: Unlike traditional ride-hailing apps, LastMinute integrates transportation services with a full marketplace, allowing users to book rides and shop for goods within the same ecosystem.
+
+**Comprehensive User Experience**: 
+- **For Customers**: Book rides, track drivers in real-time, shop in the marketplace, and manage everything through a single app
+- **For Partners (Drivers)**: Accept ride requests, manage earnings, and access partner-specific features with live location tracking
+- **For Sellers**: List and sell products through the integrated marketplace with full order management
+
+**Safety-First Approach**: 
+- Emergency features with direct access to emergency services
+- OTP-based verification for pickup and drop locations
+- Real-time location tracking and monitoring
+- Comprehensive rating and review system
+
+**Enterprise-Grade Security**:
+- AWS KMS encryption for all sensitive data
+- Secure secret management
+- Encrypted communication channels
+- Privacy-focused design
+
+### 🚀 Core Value Propositions
+
+1. **Convenience**: One app for transportation and shopping needs
+2. **Safety**: Advanced safety features and emergency protocols
+3. **Reliability**: App resilience that maintains state across restarts
+4. **Transparency**: Real-time tracking and clear communication
+5. **Flexibility**: Multiple user types and service offerings
+6. **Scalability**: Built for growth with modern architecture
+
+### 🎨 User Experience Focus
+
+LastMinute prioritizes user experience through:
+- **App Resilience**: Seamless continuation of rides even after app restarts
+- **Real-Time Updates**: Live ETA calculations and status updates
+- **Intuitive Design**: Clean, modern interface across all platforms
+- **Cross-Platform**: Consistent experience on Android, iOS, Web, and Desktop
+- **Offline Capability**: Core functionality works even with poor connectivity
+
 ## 📱 Applications
 
 ### Customer App (`ui/customer/`)
