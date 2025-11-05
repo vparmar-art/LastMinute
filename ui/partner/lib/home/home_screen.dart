@@ -65,22 +65,36 @@ void onStart(ServiceInstance service) async {
 
 void _connectWebSocketWithRetry(int partnerId) async {
   const retryDelay = Duration(seconds: 5);
+  const minDistance = 10.0; // meters
+
+  double? lastLat;
+  double? lastLng;
 
   while (true) {
+    Timer? locationTimer;
     try {
       final channel = WebSocketChannel.connect(
         Uri.parse('$wsBaseUrl/users/partner/$partnerId/location/'),
       );
 
-      Timer.periodic(const Duration(seconds: 15), (timer) async {
+      locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
         try {
           Position position = await Geolocator.getCurrentPosition();
-          print("📍 Periodic position: ${position.latitude}, ${position.longitude}");
-          channel.sink.add(jsonEncode({
-            'lat': position.latitude,
-            'lng': position.longitude,
-          }));
-          print('📡 Location sent via WebSocket');
+          double lat = position.latitude;
+          double lng = position.longitude;
+
+          if (lastLat == null || lastLng == null ||
+              Geolocator.distanceBetween(lastLat!, lastLng!, lat, lng) >= minDistance) {
+            channel.sink.add(jsonEncode({
+              'lat': lat,
+              'lng': lng,
+            }));
+            print('📡 Location sent via WebSocket');
+            lastLat = lat;
+            lastLng = lng;
+          } else {
+            print('🛑 Partner has not moved enough, not sending update.');
+          }
         } catch (e) {
           print("⚠️ Error getting location or sending via WebSocket: $e");
         }
@@ -90,6 +104,9 @@ void _connectWebSocketWithRetry(int partnerId) async {
       print("🔌 WebSocket disconnected. Retrying...");
     } catch (e) {
       print("❌ WebSocket connection failed: $e");
+    } finally {
+      // Cancel the timer before retrying
+      locationTimer?.cancel();
     }
 
     await Future.delayed(retryDelay);
@@ -299,41 +316,59 @@ class _HomeScreenState extends State<HomeScreen> {
 
             bool goingLive = _dragPosition > _maxDrag / 2;
 
-            setState(() {
-              _isLoadingProfile = true;
-            });
+            if (goingLive != _isLive) {
+              setState(() {
+                _isLoadingProfile = true;
+              });
 
-            bool success;
-            if (goingLive) {
-              _startBackgroundLocationUpdates();
-              success = await _updateLiveStatus(true);
-            } else {
-              _stopBackgroundLocationUpdates();
-              success = await _updateLiveStatus(false);
-            }
+              bool success;
+              if (goingLive) {
+                _startBackgroundLocationUpdates();
+                success = await _updateLiveStatus(true);
+              } else {
+                _stopBackgroundLocationUpdates();
+                success = await _updateLiveStatus(false);
+              }
 
-            setState(() {
-              _isLoadingProfile = false;
-            });
+              setState(() {
+                _isLoadingProfile = false;
+              });
 
-            if (mounted) {
-              if (success) {
+              if (mounted && success) {
                 setState(() {
                   _isLive = goingLive;
                   _dragPosition = goingLive ? _maxDrag : 0.0;
                 });
-              } else {
+              } else if (mounted) {
                 setState(() {
                   _dragPosition = _isLive ? _maxDrag : 0.0;
                 });
               }
+            } else {
+              // Snap back if no state change
+              setState(() {
+                _dragPosition = _isLive ? _maxDrag : 0.0;
+              });
             }
           },
           child: Container(
             height: 60,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: _isLive ? Colors.red : Colors.green,
+              color: _dragPosition == 0.0
+                  ? Colors.red
+                  : (_dragPosition == _maxDrag ? Colors.green : null),
+              gradient: (_dragPosition != 0.0 && _dragPosition != _maxDrag)
+                  ? LinearGradient(
+                      colors: [Colors.green, Colors.red],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      stops: [
+                        ((_dragPosition / _maxDrag) - 0.2).clamp(0.0, 1.0),
+                        ((_dragPosition / _maxDrag) + 0.2).clamp(0.0, 1.0),
+                      ],
+                    )
+                  : null,
             ),
             child: Stack(
               alignment: Alignment.center,

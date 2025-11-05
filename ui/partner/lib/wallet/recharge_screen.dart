@@ -23,13 +23,10 @@ class _RechargeScreenState extends State<RechargeScreen> {
 
   Future<void> _fetchPlans() async {
     final response = await http.get(Uri.parse('$apiBaseUrl/wallet/plans/'));
-    print('📥 Plan API response: ${response.body}');
     if (response.statusCode == 200) {
       setState(() {
         _plans = json.decode(response.body);
       });
-    } else {
-      print('❌ Failed to fetch plans: ${response.statusCode}');
     }
   }
 
@@ -66,7 +63,6 @@ class _RechargeScreenState extends State<RechargeScreen> {
     );
 
     if (response.statusCode == 200) {
-      print('✅ Recharge successful: ${response.body}');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('RECHARGE SUCCESSFUL'),
@@ -78,7 +74,6 @@ class _RechargeScreenState extends State<RechargeScreen> {
         Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
     } else {
-      print('❌ Recharge failed: ${response.statusCode} ${response.body}');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('RECHARGE FAILED')),
       );

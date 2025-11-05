@@ -12,51 +12,27 @@ from users.serializers.partner import PartnerSerializer
 from .sns import send_push_notification
 from users.models.token import Token
 import random
+from vehicles.models import VehicleType
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-@api_view(['GET', 'POST'])
+@api_view(['GET'])
 def booking_list(request):
     """
-    List all bookings or create a new booking.
+    List all bookings.
     """
-    if request.method == 'GET':
-        customer_id = request.query_params.get('customer')
-        partner_id = request.query_params.get('partner')
+    customer_id = request.query_params.get('customer')
+    partner_id = request.query_params.get('partner')
 
-        bookings = Booking.objects.all()
-        if customer_id:
-            bookings = bookings.filter(customer__id=customer_id)
-        if partner_id:
-            bookings = bookings.filter(partner__id=partner_id)
+    bookings = Booking.objects.all()
+    if customer_id:
+        bookings = bookings.filter(customer__id=customer_id)
+    if partner_id:
+        bookings = bookings.filter(partner__id=partner_id)
 
-        serializer = BookingSerializer(bookings, many=True)
-        return Response(serializer.data)
-
-    elif request.method == 'POST':
-        # Ensure customer and partner exist
-        customer = Customer.objects.get(id=request.data['customer'])
-        partner = Partner.objects.get(id=request.data['partner'])
-
-        booking = Booking(
-            customer=customer,
-            partner=partner,
-            pickup_location=request.data['pickup_location'],
-            drop_location=request.data['drop_location'],
-            pickup_time=request.data['pickup_time'],
-            drop_time=request.data['drop_time'],
-            amount=request.data['amount'],
-            status='created'  # Default to created
-        )
-        booking.description = request.data.get('description')
-        booking.weight = request.data.get('weight')
-        booking.dimensions = request.data.get('dimensions')
-        booking.instructions = request.data.get('instructions')
-        booking.distance_km = request.data.get('distance_km')
-        booking.boxes = request.data.get('boxes')
-        booking.helper_required = request.data.get('helper_required', False)
-        booking.save()
-        return Response(BookingSerializer(booking).data, status=status.HTTP_201_CREATED)
+    serializer = BookingSerializer(bookings, many=True)
+    return Response(serializer.data)
 
 @api_view(['GET', 'PUT'])
 def booking_detail(request, booking_id):
@@ -133,13 +109,44 @@ def start_booking(request):
     except Customer.DoesNotExist:
         return Response({'error': 'Customer not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    # Extract and log vehicle_type
+    vehicle_type_param = request.data.get('vehicle_type')
+    logger.info(f"Vehicle type requested: {vehicle_type_param}")
+    vehicle_type_obj = None
+    if vehicle_type_param is not None:
+        try:
+            vehicle_type_obj = VehicleType.objects.get(id=int(vehicle_type_param))
+        except (ValueError, VehicleType.DoesNotExist):
+            try:
+                vehicle_type_obj = VehicleType.objects.get(name=vehicle_type_param)
+            except VehicleType.DoesNotExist:
+                return Response({'error': 'Invalid vehicle_type'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Booking type and scheduled time
+    booking_type = request.data.get('booking_type', 'immediate')
+    scheduled_time = request.data.get('scheduled_time')
+    if booking_type == 'scheduled':
+        if not scheduled_time:
+            return Response({'error': 'scheduled_time is required for scheduled bookings'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            scheduled_time_dt = timezone.make_aware(timezone.datetime.fromisoformat(scheduled_time))
+        except Exception:
+            return Response({'error': 'Invalid scheduled_time format. Use ISO 8601.'}, status=status.HTTP_400_BAD_REQUEST)
+        if scheduled_time_dt <= timezone.now():
+            return Response({'error': 'scheduled_time must be in the future'}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        scheduled_time_dt = None
+
     # Create booking with status 'created'
     booking = Booking(
         customer=customer,
         pickup_location=request.data['pickup_address'],
         drop_location=request.data['drop_address'],
         status='created',
-        amount=request.data['totalFare']
+        amount=request.data['totalFare'],
+        vehicle_type=vehicle_type_obj,
+        booking_type=booking_type,
+        scheduled_time=scheduled_time_dt
     )
     booking.description = request.data.get('description')
     booking.weight = request.data.get('weight')
@@ -171,32 +178,46 @@ def start_booking(request):
     else:
         booking.save()
 
-    # Send push notifications to partners within 10km of pickup location with endpoint ARN
-    partners = Partner.objects.exclude(device_endpoint_arn__isnull=True)\
-        .exclude(device_endpoint_arn='')\
-        .filter(is_live=True, current_location__isnull=False)\
-        .annotate(distance=Distance('current_location', booking.pickup_latlng))\
-        .filter(distance__lte=10000)  # 10,000 meters = 10 km
-    for partner in partners:
-        payload = {
-            "default": "Fallback message",
-            "GCM": json.dumps({
-                "notification": {
-                    "title": "New Booking",
-                    "body": f"Customer Name {booking.customer}"
-                },
-                "data": {
-                    "booking_id": booking.id
-                }
-            })
-        }
-        try:
-            send_push_notification(
-                partner.device_endpoint_arn,
-                payload=payload
-            )
-        except Exception:
-            continue  # Log or handle failure if needed
+    # Only send push notifications for immediate bookings
+    if booking_type == 'immediate':
+        # Send push notifications to partners within 10km of pickup location with endpoint ARN and matching vehicle_type
+        partners = Partner.objects.exclude(device_endpoint_arn__isnull=True)\
+            .exclude(device_endpoint_arn='')\
+            .filter(is_live=True, current_location__isnull=False)\
+            .filter(vehicle_type=vehicle_type_obj)\
+            .annotate(distance=Distance('current_location', booking.pickup_latlng))\
+            .filter(distance__lte=10000)  # 10,000 meters = 10 km
+        
+        logger.info(f"Found {partners.count()} partners within 10km of pickup location and vehicle_type '{vehicle_type_obj}'")
+        
+        for partner in partners:
+            payload = {
+                "default": "Booking request",
+                "GCM": json.dumps({
+                    "notification": {
+                        "title": f"New Booking: {booking.pickup_location} → {booking.drop_location}",
+                        "body": f"Fare: ₹{booking.amount} | Tap to view details",
+                        "sound": "notification_alert"
+                    },
+                    "data": {
+                        "booking_id": booking.id,
+                        "pickup": booking.pickup_location,
+                        "drop": booking.drop_location,
+                        "fare": booking.amount
+                    }
+                })
+            }
+            try:
+                logger.info(f"Sending notification to partner {partner.id} (phone: {partner.phone_number})")
+                response = send_push_notification(
+                    partner.device_endpoint_arn,
+                    payload=payload
+                )
+                logger.info(f"Successfully sent notification to partner {partner.id}. Message ID: {response.get('MessageId')}")
+            except Exception as e:
+                logger.error(f"Failed to send notification to partner {partner.id}: {str(e)}")
+                # Continue with other partners even if one fails
+                continue
 
     return Response(BookingSerializer(booking).data, status=status.HTTP_201_CREATED)
 
@@ -269,6 +290,7 @@ def validate_drop_otp(request):
         }, status=status.HTTP_200_OK)
     else:
         return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+
 @api_view(['GET'])
 def booking_full_details(request, booking_id):
     """
@@ -298,3 +320,75 @@ def booking_full_details(request, booking_id):
         data['partner_details'] = None
 
     return Response(data)
+
+@api_view(['POST'])
+def submit_ride_rating(request, booking_id):
+    """
+    Submit rating and review for a completed ride.
+    """
+    try:
+        booking = Booking.objects.get(pk=booking_id)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not booking.is_completed:
+        return Response({'error': 'Can only rate completed rides'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if booking.ride_rating_submitted:
+        return Response({'error': 'Rating already submitted for this ride'}, status=status.HTTP_400_BAD_REQUEST)
+
+    rating = request.data.get('rating')
+    review = request.data.get('review', '')
+
+    if not rating or not isinstance(rating, int) or rating < 1 or rating > 5:
+        return Response({'error': 'Valid rating (1-5) is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    booking.rating = rating
+    booking.review = review
+    booking.ride_rating_submitted = True
+    booking.save()
+
+    # Update partner's average rating
+    if booking.partner:
+        partner = booking.partner
+        partner_ratings = Booking.objects.filter(
+            partner=partner, 
+            rating__isnull=False
+        ).values_list('rating', flat=True)
+        
+        if partner_ratings:
+            avg_rating = sum(partner_ratings) / len(partner_ratings)
+            partner.rating = round(avg_rating, 1)
+            partner.save()
+
+    return Response({
+        'success': 'Rating submitted successfully',
+        'rating': rating,
+        'review': review
+    }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+def report_emergency(request, booking_id):
+    """
+    Report an emergency during a ride.
+    """
+    try:
+        booking = Booking.objects.get(pk=booking_id)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    emergency_type = request.data.get('emergency_type', 'general')
+    description = request.data.get('description', '')
+    customer_location = request.data.get('customer_location')
+
+    booking.emergency_contacted = True
+    booking.customer_feedback = f"Emergency: {emergency_type} - {description}"
+    booking.save()
+
+    # Log emergency for monitoring
+    logger.warning(f"Emergency reported for booking {booking_id}: {emergency_type} - {description}")
+
+    return Response({
+        'success': 'Emergency reported successfully',
+        'message': 'Support team has been notified'
+    }, status=status.HTTP_200_OK)

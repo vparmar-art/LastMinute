@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/ride_state_manager.dart';
 
 class BookingDetailScreen extends StatefulWidget {
   const BookingDetailScreen({super.key});
@@ -40,7 +41,42 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     final bookingId = args['id'] as int;
+    _restoreRideState(bookingId);
     fetchBookingDetails(bookingId);
+  }
+
+  Future<void> _restoreRideState(int bookingId) async {
+    final rideState = await PartnerRideStateManager.getRideState();
+    if (rideState != null && rideState.isActive && rideState.bookingId == bookingId) {
+      setState(() {
+        // You can restore more fields as needed
+        // For now, just a placeholder for extensibility
+      });
+    }
+  }
+
+  Future<void> _persistRideState(String status) async {
+    if (booking == null) return;
+    
+    // Extract lat/lng from booking data
+    final pickupLatLng = booking?['pickup_latlng']?['coordinates'];
+    final dropLatLng = booking?['drop_latlng']?['coordinates'];
+    
+    final rideState = PartnerRideState(
+      bookingId: booking?['id'],
+      status: status,
+      customerName: booking?['customer_name'],
+      pickupLocation: booking?['pickup_location'],
+      dropLocation: booking?['drop_location'],
+      pickupOtp: booking?['pickup_otp'],
+      dropOtp: booking?['drop_otp'],
+      pickupLat: pickupLatLng != null ? pickupLatLng[1] : null,
+      pickupLng: pickupLatLng != null ? pickupLatLng[0] : null,
+      dropLat: dropLatLng != null ? dropLatLng[1] : null,
+      dropLng: dropLatLng != null ? dropLatLng[0] : null,
+      lastUpdated: DateTime.now(),
+    );
+    await PartnerRideStateManager.saveRideState(rideState);
   }
 
   Future<void> fetchBookingDetails(int id) async {
@@ -104,6 +140,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       if (response.statusCode == 200 || response.statusCode == 204) {
         print('Booking status updated to $status');
         await fetchBookingDetails(bookingId);
+        await _persistRideState(status);
 
         if (status == 'arriving' && mounted) {
           final pickupLatLng = booking?['pickup_latlng']?['coordinates'];
@@ -138,6 +175,10 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       builder: (context, constraints) {
         _decisionMaxDrag = constraints.maxWidth;
 
+        // Calculate normalized drag position (0.0 = left, 1.0 = right, 0.5 = center)
+        final normalized = 0.5 + (_decisionDrag / (_decisionMaxDrag));
+        final gradientCenter = normalized.clamp(0.0, 1.0);
+
         return GestureDetector(
           onHorizontalDragUpdate: (details) {
             if (mounted) {
@@ -156,6 +197,10 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             } else if (_decisionDrag < -_decisionMaxDrag / 4) {
               print('❌ Booking Rejected');
               // You can add reject API call here
+              await PartnerRideStateManager.clearRideState();
+              if (mounted) {
+                Navigator.pushReplacementNamed(context, '/home');
+              }
             }
 
             if (mounted) {
@@ -168,10 +213,14 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             height: 60,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 colors: [Colors.green, Colors.red],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
+                stops: [
+                  (gradientCenter - 0.2).clamp(0.0, 1.0),
+                  (gradientCenter + 0.2).clamp(0.0, 1.0),
+                ],
               ),
             ),
             child: Stack(
@@ -184,17 +233,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
-                Positioned(
-                  left: 10 + (_decisionDrag > 0 ? _decisionDrag : 0),
-                  child: _buildArrowButton(),
-                ),
-                Positioned(
-                  right: 10 + (_decisionDrag < 0 ? -_decisionDrag : 0),
-                  child: Transform.rotate(
-                    angle: 3.14,
-                    child: _buildArrowButton(),
-                  ),
-                ),
+                // Removed arrow pointers
               ],
             ),
           ),

@@ -5,6 +5,8 @@ import '../../home/home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import '../../constants.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 
 class PackageDetailsScreen extends StatefulWidget {
   final BookingData bookingData;
@@ -20,8 +22,12 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
   final TextEditingController _instructionsController = TextEditingController();
   final TextEditingController _boxesController = TextEditingController(text: '0');
   bool _helperRequired = false;
-
   bool _isLoading = false;
+
+  // Scheduling state
+  int _selectedBookingType = 0; // 0 = Book Now, 1 = Schedule for Later
+  DateTime? _scheduledDate;
+  TimeOfDay? _scheduledTime;
 
   @override
   Widget build(BuildContext context) {
@@ -109,6 +115,73 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12.0),
+                    child: Center(
+                      child: ToggleButtons(
+                        isSelected: [_selectedBookingType == 0, _selectedBookingType == 1],
+                        onPressed: (index) {
+                          setState(() {
+                            _selectedBookingType = index;
+                            if (index == 0) {
+                              _scheduledDate = null;
+                              _scheduledTime = null;
+                            }
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        selectedColor: Colors.white,
+                        fillColor: AppColors.accent,
+                        color: Colors.grey[400],
+                        constraints: const BoxConstraints(minWidth: 140, minHeight: 40),
+                        children: const [
+                          Text('Book Now', style: TextStyle(fontSize: 16)),
+                          Text('Schedule', style: TextStyle(fontSize: 16)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (_selectedBookingType == 1) ...[
+                    const SizedBox(height: 12),
+                    ListTile(
+                      title: Text(_scheduledDate == null
+                          ? 'Select Date'
+                          : 'Date: 	${_scheduledDate!.toLocal().toString().split(' ')[0]}'),
+                      leading: const Icon(Icons.calendar_today),
+                      onTap: () async {
+                        FocusScope.of(context).requestFocus(FocusNode()); // Unfocus any text field
+                        await Future.delayed(const Duration(milliseconds: 50)); // Wait for keyboard to close
+                        final now = DateTime.now();
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: now.add(const Duration(days: 1)),
+                          firstDate: now,
+                          lastDate: now.add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setState(() => _scheduledDate = picked);
+                        }
+                      },
+                    ),
+                    ListTile(
+                      title: Text(_scheduledTime == null
+                          ? 'Select Time'
+                          : 'Time: ${_scheduledTime!.format(context)}'),
+                      leading: const Icon(Icons.access_time),
+                      onTap: () async {
+                        FocusScope.of(context).requestFocus(FocusNode()); // Unfocus any text field
+                        await Future.delayed(const Duration(milliseconds: 50)); // Wait for keyboard to close
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.now(),
+                        );
+                        if (picked != null) {
+                          setState(() => _scheduledTime = picked);
+                        }
+                      },
+                    ),
+                  ],
+                  const SizedBox(height: 16),
                   Card(
                     margin: const EdgeInsets.only(bottom: 20),
                     elevation: 2,
@@ -153,8 +226,14 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
               onPressed: () async {
                 FocusScope.of(context).unfocus(); // Close keyboard
                 if (_formKey.currentState!.validate()) {
+                  if (_selectedBookingType == 1 && (_scheduledDate == null || _scheduledTime == null)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please select both date and time for scheduling.')),
+                    );
+                    return;
+                  }
                   setState(() => _isLoading = true);
-                  try { 
+                  try {
                     final prefs = await SharedPreferences.getInstance();
                     final customer_id = prefs.getInt('customer');
                     widget.bookingData.description = _descriptionController.text;
@@ -163,23 +242,59 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                     widget.bookingData.customer = customer_id?.toString();
                     widget.bookingData.boxes = int.tryParse(_boxesController.text);
                     widget.bookingData.helper_required = _helperRequired;
-                
-                    final uri = Uri.parse('$apiBaseUrl/bookings/start/');
 
+                    // Prepare payload
+                    final payload = widget.bookingData.toJson();
+                    if (_selectedBookingType == 1) {
+                      final dt = DateTime(
+                        _scheduledDate!.year,
+                        _scheduledDate!.month,
+                        _scheduledDate!.day,
+                        _scheduledTime!.hour,
+                        _scheduledTime!.minute,
+                      );
+                      payload['booking_type'] = 'scheduled';
+                      payload['scheduled_time'] = dt.toIso8601String();
+                    } else {
+                      payload['booking_type'] = 'immediate';
+                    }
+
+                    final uri = Uri.parse('$apiBaseUrl/bookings/start/');
                     final response = await http.post(
                       uri,
                       headers: {'Content-Type': 'application/json'},
-                      body: jsonEncode(widget.bookingData.toJson()),
+                      body: jsonEncode(payload),
                     );
 
                     if (response.statusCode == 201) {
                       final responseData = jsonDecode(response.body);
                       final bookingId = responseData['id'];
-                      Navigator.pushReplacementNamed(
-                        context,
-                        '/booking',
-                        arguments: {'id': bookingId},
-                      );
+                      if (_selectedBookingType == 1) {
+                        // Show dialog for scheduled bookings
+                        await showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Booking Scheduled!'),
+                            content: const Text('Your ride has been scheduled successfully.'),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop(); // Close dialog
+                                  Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false); // Go to home
+                                },
+                                child: const Text('OK'),
+                              ),
+                            ],
+                          ),
+                        );
+                      } else {
+                        // Existing flow for immediate bookings
+                        Navigator.pushReplacementNamed(
+                          context,
+                          '/booking',
+                          arguments: {'id': bookingId},
+                        );
+                      }
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Booking failed: ${response.statusCode}')),
@@ -192,9 +307,9 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
-                backgroundColor: Colors.orange,
+                backgroundColor: AppColors.accent,
               ),
-              child: const Text('Book'),
+              child: Text('Book', style: AppTextStyles.buttonText),
             ),
           ),
         ),

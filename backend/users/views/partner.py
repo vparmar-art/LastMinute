@@ -55,10 +55,15 @@ class PartnerSendOTPView(APIView):
         )
         session_id = request.session.session_key or request.session.save() or request.session.session_key
 
-        PartnerOTP.objects.create(
+        # Store only the latest OTP per partner
+        otp, created = PartnerOTP.objects.update_or_create(
             partner=partner,
-            code=code,
-            session_id=session_id
+            defaults={
+                'code': code,
+                'session_id': session_id,
+                'is_verified': False,
+                'created_at': timezone.now()
+            }
         )
 
         logger.info(f"OTP generated for {phone_number} - {code}")
@@ -107,11 +112,15 @@ class PartnerVerifyOTPView(APIView):
         device_endpoint_arn = request.data.get('device_endpoint_arn')
         if device_endpoint_arn:
             try:
+                logger.info(f"Registering device for partner {phone_number} with FCM token: {device_endpoint_arn[:20]}...")
                 endpoint_arn = register_device_with_sns(device_endpoint_arn)
                 partner.device_endpoint_arn = endpoint_arn
                 partner.save()
+                logger.info(f"Successfully registered device for partner {phone_number}. Endpoint ARN: {endpoint_arn}")
             except Exception as e:
                 logger.error(f"Failed to register device with SNS for {phone_number}: {str(e)}")
+                # Don't fail the login, just log the error
+                # The partner can still login but won't receive push notifications
 
         return Response({'token': token.key})
 

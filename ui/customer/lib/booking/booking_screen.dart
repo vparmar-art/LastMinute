@@ -11,6 +11,9 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
+import '../utils/ride_state_manager.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 
 class BookingScreen extends StatefulWidget {
   const BookingScreen({super.key});
@@ -23,7 +26,6 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
   Timer? _locationUpdateTimer;
   final String googleApiKey = 'AIzaSyDktJbUpou1FhxfYCaaYywC-145hPE7qb0';
   final ApiService _apiService = ApiService(googleApiKey: 'AIzaSyDktJbUpou1FhxfYCaaYywC-145hPE7qb0');
-  // Timer? _pollingTimer;
   bool _isArriving = false;
   int? bookingId;
   bool _isLoading = true;
@@ -48,6 +50,15 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
   WebSocketChannel? _channel;
   bool _isAppActive = true;
   bool _isConnecting = false;
+  
+  // Enhanced ride experience variables
+  String _eta = '';
+  String _distance = '';
+  String _rideStatus = 'Looking for driver...';
+  bool _showEmergencyButton = false;
+  bool _isRideCompleted = false;
+  double _rideProgress = 0.0;
+  Timer? _etaUpdateTimer;
 
   @override
   void initState() {
@@ -63,65 +74,75 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
       bookingId = args?['id'];
       _customerLat = args?['customer_lat'];
       _customerLng = args?['customer_lng'];
+      
+      // If no booking ID from arguments, try to get it from ride state
+      if (bookingId == null) {
+        _getBookingIdFromRideState();
+      } else {
+        // Restore ride state if available
+        _restoreRideState();
+        
+        if (bookingId != null && _channel == null) {
+          _startBookingWebSocket();
+        }
+      }
+    }
+  }
+
+  Future<void> _getBookingIdFromRideState() async {
+    final rideState = await RideStateManager.getRideState();
+    if (rideState != null && rideState.isActive) {
+      setState(() {
+        bookingId = rideState.bookingId;
+      });
+      
+      // Restore ride state and start WebSocket
+      await _restoreRideState();
+      
       if (bookingId != null && _channel == null) {
         _startBookingWebSocket();
       }
     }
   }
 
-  // void _startPolling() {
-  //   _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) => _fetchBooking());
-  // }
-
-  void _startBookingWebSocket() {
-    if (bookingId == null || _channel != null || _isConnecting || !_isAppActive) {
-      return;
-    }
-    _isConnecting = true;
-    try {
-      final wsUrl = Uri.parse('$wsBaseUrl/bookings/$bookingId/');
-      _channel = WebSocketChannel.connect(wsUrl);
-      _isConnecting = false;
-      final channel = _channel!;
-      channel.stream.listen((message) async {
-        try {
-          final data = jsonDecode(message);
-          // --- Begin logic from _fetchBooking for parsing and state ---
-          // Parse pickup_otp, drop_otp, partner_details, pickup_latlng, drop_latlng, geometry, status
-          final partner = data['partner_details'];
-          final partnerProperties = partner?['properties'];
-          final pickupLatLng = data['pickup_latlng'];
-          final dropLatLng = data['drop_latlng'];
-          final geometry = partner?['geometry'];
-          final status = data['status'];
-          // If status is 'created' and no partner assigned, don't process further
-          if (status == 'created' && partner == null) {
-            return;
+  Future<void> _restoreRideState() async {
+    final rideState = await RideStateManager.getRideState();
+    if (rideState != null && rideState.isActive) {
+      // If bookingId is null, use the one from ride state
+      if (bookingId == null) {
+        bookingId = rideState.bookingId;
+      }
+      
+      // Only restore if the booking IDs match or if we don't have a booking ID yet
+      if (bookingId == null || rideState.bookingId == bookingId) {
+        // Restore the ride state
+        setState(() {
+          _partnerName = rideState.driverName ?? '';
+          _driverPhone = rideState.driverPhone ?? '';
+          _vehicleNumber = rideState.vehicleNumber ?? '';
+          _vehicleType = rideState.vehicleType ?? '';
+          _pickupOtp = rideState.pickupOtp;
+          _dropOtp = rideState.dropOtp;
+          
+          // Set appropriate status based on ride state
+          if (rideState.status == 'arriving') {
+            _isArriving = true;
+            _isLoading = false;
+            _rideStatus = 'Arriving';
+            _showEmergencyButton = true;
+          } else if (rideState.status == 'in_transit') {
+            _isArriving = false;
+            _isLoading = false;
+            _rideStatus = 'Ride in progress...';
+            _showEmergencyButton = true;
+          } else if (rideState.status == 'created') {
+            _isLoading = true;
+            _rideStatus = 'Looking for driver...';
           }
-          _pickupOtp = data['pickup_otp']?.toString();
-          _dropOtp = data['drop_otp']?.toString();
-          _partnerName = partnerProperties != null && partnerProperties['driver_name'] != null ? partnerProperties['driver_name'] : '';
-          _driverPhone = partnerProperties != null && partnerProperties['driver_phone'] != null ? partnerProperties['driver_phone'].toString() : '';
-          _vehicleNumber = partnerProperties != null && partnerProperties['vehicle_number'] != null ? partnerProperties['vehicle_number'] : '';
-          _vehicleType = partnerProperties != null && partnerProperties['vehicle_type'] != null ? partnerProperties['vehicle_type'] : '';
-          // Parse pickupLatLng using 'coordinates' if present
-          if (pickupLatLng != null && pickupLatLng['coordinates'] != null) {
-            final coords = pickupLatLng['coordinates'];
-            _pickupLng = coords[0];
-            _pickupLat = coords[1];
-          }
-          // Parse dropLatLng using 'coordinates' if present
-          if (dropLatLng != null && dropLatLng['coordinates'] != null) {
-            final coords = dropLatLng['coordinates'];
-            _dropLng = coords[0];
-            _dropLat = coords[1];
-          }
-          // Parse geometry using 'coordinates'
-          if (geometry != null && geometry['coordinates'] != null) {
-            final coords = geometry['coordinates'];
-            _lng = coords[0];
-            _lat = coords[1];
-          }
+        });
+        
+        // If we have driver info, create the vehicle icon
+        if (_vehicleType.isNotEmpty) {
           String vehicleEmoji;
           switch (_vehicleType.toLowerCase()) {
             case 'bike':
@@ -137,44 +158,138 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
               vehicleEmoji = '🚘';
           }
           _driverIcon = await createEmojiMarker(vehicleEmoji);
-          // Only call _drawRoute/_drawDropRoute after _driverIcon is initialized
+        }
+      }
+    }
+  }
+
+  void _startBookingWebSocket() {
+    if (bookingId == null || _channel != null || _isConnecting || !_isAppActive) {
+      return;
+    }
+    _isConnecting = true;
+    try {
+      final wsUrl = Uri.parse('$wsBaseUrl/bookings/$bookingId/');
+      _channel = WebSocketChannel.connect(wsUrl);
+      _isConnecting = false;
+      final channel = _channel!;
+      channel.stream.listen((message) async {
+                  try {
+            final data = jsonDecode(message);
+            final partner = data['partner_details'];
+            final partnerProperties = partner?['properties'];
+            final pickupLatLng = data['pickup_latlng'];
+            final dropLatLng = data['drop_latlng'];
+            final geometry = partner?['geometry'];
+            final status = data['status'];
+            
+            if (status == 'created' && partner == null) {
+              return;
+            }
+
+            _pickupOtp = data['pickup_otp']?.toString();
+            _dropOtp = data['drop_otp']?.toString();
+            _partnerName = partnerProperties != null && partnerProperties['driver_name'] != null ? partnerProperties['driver_name'] : '';
+            _driverPhone = partnerProperties != null && partnerProperties['driver_phone'] != null ? partnerProperties['driver_phone'].toString() : '';
+            _vehicleNumber = partnerProperties != null && partnerProperties['vehicle_number'] != null ? partnerProperties['vehicle_number'] : '';
+            _vehicleType = partnerProperties != null && partnerProperties['vehicle_type'] != null ? partnerProperties['vehicle_type'] : '';
+
+            // Save ride state for app resilience
+            final rideState = RideState(
+              bookingId: bookingId,
+              status: status,
+              driverName: _partnerName,
+              vehicleType: _vehicleType,
+              vehicleNumber: _vehicleNumber,
+              driverPhone: _driverPhone,
+              pickupOtp: _pickupOtp,
+              dropOtp: _dropOtp,
+              lastUpdated: DateTime.now(),
+            );
+            await RideStateManager.saveRideState(rideState);
+
+          if (pickupLatLng != null && pickupLatLng['coordinates'] != null) {
+            final coords = pickupLatLng['coordinates'];
+            _pickupLng = coords[0];
+            _pickupLat = coords[1];
+          }
+          if (dropLatLng != null && dropLatLng['coordinates'] != null) {
+            final coords = dropLatLng['coordinates'];
+            _dropLng = coords[0];
+            _dropLat = coords[1];
+          }
+          if (geometry != null && geometry['coordinates'] != null) {
+            final coords = geometry['coordinates'];
+            _lng = coords[0];
+            _lat = coords[1];
+          }
+
+          String vehicleEmoji;
+          switch (_vehicleType.toLowerCase()) {
+            case 'bike':
+              vehicleEmoji = '🛵';
+              break;
+            case 'auto':
+              vehicleEmoji = '🚗';
+              break;
+            case 'truck':
+              vehicleEmoji = '🚚';
+              break;
+            default:
+              vehicleEmoji = '🚘';
+          }
+          _driverIcon = await createEmojiMarker(vehicleEmoji);
+
           if (_driverIcon != null) {
             if (status == 'arriving') {
               if (mounted) {
                 setState(() {
                   _isArriving = true;
                   _isLoading = false;
+                  _rideStatus = 'Arriving';
+                  _showEmergencyButton = true;
                 });
               }
               if (_lat != null && _lng != null && _pickupLat != null && _pickupLng != null) {
                 await _drawRoute();
+                _startEtaUpdates();
               }
             } else if (status == 'in_transit') {
               if (mounted) {
                 setState(() {
                   _isArriving = false;
                   _isLoading = false;
+                  _rideStatus = 'Ride in progress';
+                  _showEmergencyButton = true;
                 });
               }
               if (_lat != null && _lng != null && _dropLat != null && _dropLng != null) {
                 await _drawDropRoute();
+                _startEtaUpdates();
               }
-            } else if (status == 'completed') {
-              _channel?.sink.close();
-              _channel = null;
-              if (mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+                          } else if (status == 'completed') {
+                _channel?.sink.close();
+                _channel = null;
+                _etaUpdateTimer?.cancel();
+                if (mounted) {
+                  setState(() {
+                    _isRideCompleted = true;
+                    _rideStatus = 'Ride completed!';
+                    _showEmergencyButton = false;
+                  });
+                  _showRideCompletionDialog();
+                }
+                
+                // Update ride state to completed
+                await RideStateManager.updateRideStatus('completed');
               }
-            }
           }
-          // --- End logic from _fetchBooking ---
         } catch (e) {
           // Swallow error
         }
       }, onError: (error) {
         _isConnecting = false;
         _channel = null;
-        // Only retry if app is active and screen is mounted
         if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
           Future.delayed(const Duration(seconds: 5), () {
             if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
@@ -185,7 +300,6 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
       }, onDone: () {
         _isConnecting = false;
         _channel = null;
-        // Only attempt reconnection if the screen is still mounted and active
         if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
           Future.delayed(const Duration(seconds: 2), () {
             if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
@@ -197,7 +311,6 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
     } catch (e) {
       _isConnecting = false;
       _channel = null;
-      // Only retry if app is active
       if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
         Future.delayed(const Duration(seconds: 5), () {
           if (_isAppActive && mounted && ModalRoute.of(context)?.isCurrent == true) {
@@ -208,10 +321,164 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
     }
   }
 
-  // _fetchBooking method removed; logic now handled in _startBookingWebSocket
+  void _startEtaUpdates() {
+    _etaUpdateTimer?.cancel();
+    _etaUpdateTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (_lat != null && _lng != null) {
+        _updateEtaAndDistance();
+      }
+    });
+    _updateEtaAndDistance(); // Initial update
+  }
 
-  // Uncommented and replaced by _startBookingWebSocket()
+  Future<void> _updateEtaAndDistance() async {
+    if (_lat == null || _lng == null) return;
+    
+    try {
+      final targetLat = _isArriving ? _pickupLat : _dropLat;
+      final targetLng = _isArriving ? _pickupLng : _dropLng;
+      
+      if (targetLat == null || targetLng == null) return;
+      
+      final url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins=${_lat},${_lng}&destinations=$targetLat,$targetLng&key=$googleApiKey";
+      final response = await http.get(Uri.parse(url));
+      final data = json.decode(response.body);
+      
+      if (data['rows'] != null && data['rows'].isNotEmpty && 
+          data['rows'][0]['elements'] != null && 
+          data['rows'][0]['elements'].isNotEmpty) {
+        final element = data['rows'][0]['elements'][0];
+        if (element['status'] == 'OK') {
+          final duration = element['duration']['text'];
+          final distance = element['distance']['text'];
+          
+          if (mounted) {
+            setState(() {
+              _eta = duration;
+              _distance = distance;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      // Handle error silently
+    }
+  }
 
+  void _showRideCompletionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Ride Completed! 🎉'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: AppColors.accent, size: 50),
+            const SizedBox(height: 16),
+            Text('Thank you for choosing LastMinute!'),
+            const SizedBox(height: 8),
+            Text('Driver: $_partnerName', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text('Vehicle: $_vehicleType ($_vehicleNumber)'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+            },
+            child: Text('Skip', style: AppTextStyles.buttonText),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (bookingId != null) {
+                Navigator.of(context).pushNamed(
+                  '/rating',
+                  arguments: {
+                    'bookingId': bookingId,
+                    'driverName': _partnerName,
+                    'vehicleType': _vehicleType,
+                    'vehicleNumber': _vehicleNumber,
+                  },
+                );
+              }
+            },
+            child: Text('Rate Your Ride', style: AppTextStyles.buttonText),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEmergencyDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Emergency Options'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.phone, color: Colors.red),
+              title: const Text('Call Emergency Services'),
+              subtitle: const Text('Police, Ambulance, Fire'),
+              onTap: () {
+                Navigator.pop(context);
+                _callEmergencyServices();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.support_agent, color: Colors.orange),
+              title: const Text('Contact Support'),
+              subtitle: const Text('24/7 Customer Support'),
+              onTap: () {
+                Navigator.pop(context);
+                _contactSupport();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share_location, color: Colors.blue),
+              title: const Text('Share Location'),
+              subtitle: const Text('Share your current location'),
+              onTap: () {
+                Navigator.pop(context);
+                _shareLocation();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: AppTextStyles.buttonText),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _callEmergencyServices() async {
+    final uri = Uri(scheme: 'tel', path: '100'); // Emergency number
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _contactSupport() async {
+    final uri = Uri(scheme: 'tel', path: '+91-1800-123-4567'); // Support number
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _shareLocation() {
+    // Implement location sharing functionality
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Location sharing feature coming soon!', style: AppTextStyles.buttonText)),
+    );
+  }
 
   Future<BitmapDescriptor> createEmojiMarker(String emoji) async {
     final TextPainter textPainter = TextPainter(
@@ -242,7 +509,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
     _polylines = [
       Polyline(
         polylineId: const PolylineId('driver_to_pickup'),
-        color: Colors.blue,
+        color: AppColors.primary,
         width: 5,
         points: polylineCoordinates,
       )
@@ -333,7 +600,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
     _polylines = [
       Polyline(
         polylineId: const PolylineId('driver_to_drop'),
-        color: Colors.green,
+        color: AppColors.accent,
         width: 5,
         points: polylineCoordinates,
       )
@@ -374,7 +641,7 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _locationUpdateTimer?.cancel();
-    // Close the WebSocket when leaving the screen
+    _etaUpdateTimer?.cancel();
     if (_channel != null) {
       _channel?.sink.close();
       _channel = null;
@@ -414,14 +681,18 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
         elevation: 0,
         backgroundColor: Colors.white,
         title: Text(
-          _isArriving ? 'Arriving' : (_pickupOtp == null ? 'Booking In Progress' : 'Ride In Progress'),
-          style: GoogleFonts.manrope(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          _isArriving ? 'Driver Arriving' : (_pickupOtp == null ? 'Finding Driver' : 'Ride in Progress'),
+          style: AppTextStyles.heading3,
         ),
         iconTheme: const IconThemeData(color: Colors.black),
+        actions: [
+          if (_showEmergencyButton)
+            IconButton(
+              icon: const Icon(Icons.emergency, color: Colors.red),
+              onPressed: _showEmergencyDialog,
+              tooltip: 'Emergency',
+            ),
+        ],
       ),
       body: _isLoading
           ? (_pickupOtp == null
@@ -430,17 +701,13 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       CircularProgressIndicator(
-                        color: Colors.orange,
+                        color: AppColors.primary,
                         strokeWidth: 4,
                       ),
                       SizedBox(height: 20),
                       Text(
                         'Looking for drivers nearby...',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black54,
-                        ),
+                        style: AppTextStyles.subTitle,
                       ),
                     ],
                   ),
@@ -458,74 +725,152 @@ class _BookingScreenState extends State<BookingScreen> with WidgetsBindingObserv
                     markers: _markers,
                     onMapCreated: (controller) => _mapController = controller,
                   ),
+                // Enhanced ride info card
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: SafeArea(
                     child: Container(
                       width: double.infinity,
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 15)],
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            _isArriving
-                                ? 'Your driver $_partnerName is on the way'
-                                : 'Ride in progress with $_partnerName',
-                            style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 10),
-                          Text('Phone: $_driverPhone', style: GoogleFonts.manrope()),
-                          Text('Vehicle: $_vehicleType ($_vehicleNumber)', style: GoogleFonts.manrope()),
-                          if (_pickupOtp != null) ...[
-                            const SizedBox(height: 10),
-                            Text(
-                              _isArriving ? 'Pickup OTP: $_pickupOtp' : 'Drop OTP: $_dropOtp',
-                              style: GoogleFonts.manrope(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.indigo,
-                              ),
-                            ),
-                          ],
-                          if (_isArriving) ...[
-                            const SizedBox(height: 20),
-                            ElevatedButton.icon(
-                              onPressed: () async {
-                                final cleanedPhone = _driverPhone.replaceAll(RegExp(r'[^+\d]'), '');
-                                final uri = Uri(scheme: 'tel', path: cleanedPhone);
-
-                                final canLaunch = await canLaunchUrl(uri);
-
-                                if (canLaunch) {
-                                  final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Could not launch dialer for $cleanedPhone')),
-                                  );
-                                }
-                              },
-                              icon: const Icon(Icons.phone),
-                              label: Text('Contact Driver', style: GoogleFonts.manrope()),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                                minimumSize: const Size(double.infinity, 48),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                          // Status and ETA
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _rideStatus,
+                                      style: AppTextStyles.heading3,
+                                    ),
+                                    if (_eta.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'ETA: $_eta',
+                                        style: AppTextStyles.eta,
+                                      ),
+                                    ],
+                                    if (_distance.isNotEmpty) ...[
+                                      Text(
+                                        'Distance: $_distance',
+                                        style: AppTextStyles.distance,
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
+                              // Driver info
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    _partnerName,
+                                    style: AppTextStyles.driverName,
+                                  ),
+                                  Text(
+                                    '$_vehicleType • $_vehicleNumber',
+                                    style: AppTextStyles.vehicleInfo,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // OTP Section
+                          if (_pickupOtp != null) ...[
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.primaryExtraLight),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.key, color: AppColors.primary, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _isArriving ? 'Pickup OTP' : 'Drop OTP',
+                                          style: AppTextStyles.otpLabel,
+                                        ),
+                                        Text(
+                                          _isArriving ? _pickupOtp! : _dropOtp!,
+                                          style: AppTextStyles.otpValue,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ]
+                            const SizedBox(height: 16),
+                          ],
+                          // Action buttons
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    final cleanedPhone = _driverPhone.replaceAll(RegExp(r'[^+\d]'), '');
+                                    final uri = Uri(scheme: 'tel', path: cleanedPhone);
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                    }
+                                  },
+                                  icon: const Icon(Icons.phone),
+                                  label: Text('Call Driver', style: AppTextStyles.callDriverButton),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    minimumSize: const Size(double.infinity, 48),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    // Share ride details
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Sharing ride details...', style: AppTextStyles.buttonText)),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.share),
+                                  label: Text('Share', style: AppTextStyles.shareButton),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.greyExtraLight,
+                                    foregroundColor: Colors.black87,
+                                    minimumSize: const Size(double.infinity, 48),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
                   ),
-                )
+                ),
               ],
             ),
     );

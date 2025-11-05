@@ -102,3 +102,10 @@ yarn-error.log
 
 # Zappa (if you're deploying Django serverless)
 .zappa/
+# Terraform
+backend/infra/terraform/.terraform/
+backend/infra/terraform/terraform.tfstate
+backend/infra/terraform/terraform.tfstate.*
+backend/infra/terraform/tfplan
+# Local installers
+AWSCLIV2.pkg

@@ -6,6 +6,9 @@ import 'package_details/package_details.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'booking/booking_screen.dart';
 import 'booking/booking_history.dart';
+import 'booking/rating_screen.dart';
+import 'utils/ride_state_manager.dart';
+import 'theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -24,9 +27,28 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _checkLoginStatus() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    if (token != null && token.isNotEmpty) {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
+    
+          if (token != null && token.isNotEmpty) {
+        // Check if there's an active ride
+        final initialRoute = await RideStateManager.getInitialRoute();
+        final rideState = await RideStateManager.getRideState();
+        
+        if (initialRoute != null && rideState != null) {
+          // Navigate to the appropriate ride screen with arguments
+          if (initialRoute == '/booking') {
+            Navigator.pushReplacementNamed(
+              context, 
+              initialRoute,
+              arguments: {'id': rideState.bookingId},
+            );
+          } else {
+            Navigator.pushReplacementNamed(context, initialRoute);
+          }
+        } else {
+          // No active ride, go to home
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      } else {
       Navigator.pushReplacementNamed(context, '/login');
     }
   }
@@ -51,6 +73,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'LastMinute',
       debugShowCheckedModeBanner: false,
+      theme: appTheme,
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
@@ -62,6 +85,15 @@ class MyApp extends StatelessWidget {
         },
         '/booking': (context) => const BookingScreen(),
         '/bookings-list': (context) => const BookingHistoryScreen(),
+        '/rating': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          return RatingScreen(
+            bookingId: args['bookingId'],
+            driverName: args['driverName'],
+            vehicleType: args['vehicleType'],
+            vehicleNumber: args['vehicleNumber'],
+          );
+        },
       },
     );
   }
