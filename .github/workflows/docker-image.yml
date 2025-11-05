@@ -6,8 +6,8 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REGISTRY: 054037119505.dkr.ecr.us-east-1.amazonaws.com
-  ECR_REPOSITORY: last-minute/prod
+  ECR_REGISTRY: 957118235304.dkr.ecr.us-east-1.amazonaws.com
+  ECR_REPOSITORY: lastminute-backend
   ECS_CLUSTER: last-minute-prod
   ECS_SERVICE: backend
   CONTAINER_NAME: last-minute-backend
@@ -19,11 +19,6 @@ jobs:
     steps:
       - name: Checkout current repo (if needed)
         uses: actions/checkout@v4
-
-      - name: Clone private backend repo
-        run: |
-          git clone https://x-access-token:${{ secrets.GIT_TOKEN }}@github.com/vparmar-art/LastMinute.git repo
-          cp -r repo/backend ./backend
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -39,10 +34,12 @@ jobs:
       - name: Build Docker image
         run: |
           IMAGE_TAG=latest
+          SHA_TAG=${GITHUB_SHA}
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-          docker build -t $ECR_REPOSITORY:$IMAGE_TAG ./backend
-          docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "SHA_TAG=$SHA_TAG" >> $GITHUB_ENV
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:$SHA_TAG ./backend
 
       - name: Push Docker image to ECR
         run: |
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$SHA_TAG
