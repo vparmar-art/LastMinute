@@ -14,6 +14,8 @@ class RechargeScreen extends StatefulWidget {
 class _RechargeScreenState extends State<RechargeScreen> {
   List<dynamic> _plans = [];
   int? _selectedPlanId;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -22,11 +24,44 @@ class _RechargeScreenState extends State<RechargeScreen> {
   }
 
   Future<void> _fetchPlans() async {
-    final response = await http.get(Uri.parse('$apiBaseUrl/wallet/plans/'));
-    if (response.statusCode == 200) {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      print('📋 Fetching plans from: $apiBaseUrl/wallet/plans/');
+      final response = await http.get(Uri.parse('$apiBaseUrl/wallet/plans/'));
+      
+      print('📋 Plans API response status: ${response.statusCode}');
+      print('📋 Plans API response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final plansData = json.decode(response.body);
+        print('📋 Plans data: $plansData');
+        setState(() {
+          _plans = plansData is List ? plansData : [];
+          _isLoading = false;
+        });
+        
+        if (_plans.isEmpty) {
+          setState(() {
+            _errorMessage = 'No plans available. Please contact support.';
+          });
+        }
+      } else {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to load plans. Status: ${response.statusCode}';
+        });
+        print('❌ Failed to fetch plans: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
       setState(() {
-        _plans = json.decode(response.body);
+        _isLoading = false;
+        _errorMessage = 'Error loading plans: $e';
       });
+      print('❌ Error fetching plans: $e');
     }
   }
 
@@ -88,9 +123,49 @@ class _RechargeScreenState extends State<RechargeScreen> {
         backgroundColor: Colors.indigo,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: _plans.isEmpty
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
+          : _errorMessage != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+                      const SizedBox(height: 16),
+                      Text(
+                        _errorMessage!,
+                        style: const TextStyle(fontSize: 16, color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _fetchPlans,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+          : _plans.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No plans available',
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Please contact support or check back later',
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                )
+              : Column(
               children: [
                 Expanded(
                   child: ListView.builder(

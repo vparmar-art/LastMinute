@@ -12,6 +12,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
 import '../../constants.dart';
+import '../main.dart' show navigatorKey;
+import '../utils/ride_state_manager.dart';
 
 
 Future<void> initializeService() async {
@@ -70,12 +72,15 @@ void _connectWebSocketWithRetry(int partnerId) async {
   double? lastLat;
   double? lastLng;
 
-  while (true) {
+    while (true) {
     Timer? locationTimer;
     try {
+      final wsUrl = '$wsBaseUrl/users/partner/$partnerId/location/';
+      print('🔌 Connecting to WebSocket: $wsUrl');
       final channel = WebSocketChannel.connect(
-        Uri.parse('$wsBaseUrl/users/partner/$partnerId/location/'),
+        Uri.parse(wsUrl),
       );
+      print('✅ WebSocket connected successfully');
 
       locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
         try {
@@ -151,9 +156,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     final partnerId = prefs.getInt('partner_id');
     if (partnerId != null) {
+      final wsUrl = '$wsBaseUrl/users/partner/$partnerId/location/';
+      print('🔌 Connecting to WebSocket: $wsUrl');
       _channel = WebSocketChannel.connect(
-        Uri.parse('$wsBaseUrl/users/partner/$partnerId/location/'),
+        Uri.parse(wsUrl),
       );
+      print('✅ WebSocket connected successfully');
+    } else {
+      print('⚠️ Partner ID not found, cannot connect WebSocket');
     }
 
     print("🚀 Background location service started");
@@ -323,8 +333,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
               bool success;
               if (goingLive) {
-                _startBackgroundLocationUpdates();
                 success = await _updateLiveStatus(true);
+                if (success) {
+                  _startBackgroundLocationUpdates();
+                }
               } else {
                 _stopBackgroundLocationUpdates();
                 success = await _updateLiveStatus(false);
@@ -339,6 +351,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   _isLive = goingLive;
                   _dragPosition = goingLive ? _maxDrag : 0.0;
                 });
+              } else if (mounted && !success && goingLive) {
+                // If going live failed (likely due to no active plan), reset the drag position
+                setState(() {
+                  _dragPosition = 0.0;
+                });
+                // Navigation to /plans should already be handled in _updateLiveStatus
+                // Don't navigate again here to avoid duplicate navigation
               } else if (mounted) {
                 setState(() {
                   _dragPosition = _isLive ? _maxDrag : 0.0;
@@ -424,63 +443,140 @@ class _HomeScreenState extends State<HomeScreen> {
     if (response.statusCode == 200) {
       print('✅ Live status updated to $value');
       return true;
-    } else if (response.statusCode == 403 && mounted) {
-      Navigator.pushNamed(context, '/plans');
+    } else if (response.statusCode == 403) {
+      print('❌ No active plan. Navigating to plans page...');
+      // Use navigatorKey for safe navigation that works even if widget is disposed
+      // This avoids the "Looking up a deactivated widget's ancestor" error
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          final navigator = navigatorKey.currentState;
+          if (navigator != null) {
+            print('✅ Navigator found, navigating to /plans...');
+            navigator.pushNamed('/plans').then((_) {
+              print('✅ Successfully navigated to plans page');
+            }).catchError((error) {
+              print('❌ Navigation to plans failed: $error');
+            });
+          } else {
+            print('⚠️ Navigator not available (navigatorKey.currentState is null), cannot navigate to plans');
+            // Try using context as fallback if widget is still mounted
+            if (mounted) {
+              print('⚠️ Trying fallback navigation using context...');
+              try {
+                Navigator.pushNamed(context, '/plans');
+              } catch (e) {
+                print('❌ Fallback navigation also failed: $e');
+              }
+            }
+          }
+        } catch (e) {
+          print('❌ Error navigating to plans: $e');
+          print('Error stack trace: ${StackTrace.current}');
+        }
+      });
       return false;
     } else {
-      print('❌ Failed to update live status: ${response}');
+      final errorBody = response.body;
+      print('❌ Failed to update live status: ${response.statusCode}');
+      print('Error response: $errorBody');
       return false;
     }
   }
 
   Future<void> _fetchPartnerDetails() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    if (token == null) return;
-
-    final response = await http.get(
-      Uri.parse('$apiBaseUrl/users/partner/profile/'),
-      headers: {'Authorization': 'Token $token'},
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      print('Partner Profile Response: $data');
-      final properties = data['properties'];
-      final isApproved = properties['is_verified'] == true;
-      if (!isApproved && mounted) {
-        Navigator.pushReplacementNamed(context, '/verify');
-      } else {
-        final partnerId = data['id'];
-        await prefs.setInt('partner_id', partnerId);
-        final walletResponse = await http.get(
-          Uri.parse('$apiBaseUrl/wallet/partner-wallet/$partnerId/'),
-          headers: {'Authorization': 'Token $token'},
-        );
-
-        if (walletResponse.statusCode == 200) {
-          final walletData = json.decode(walletResponse.body);
-          print('Partner Wallet: $walletData');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      if (token == null) {
+        if (mounted) {
           setState(() {
-            _ridesRemaining = walletData['rides_remaining'] ?? 0;
-            _walletBalance = double.tryParse(walletData['balance'].toString()) ?? 0.0;
-            _walletValidUntil = walletData['valid_until'];
+            _isLoadingProfile = false;
           });
         }
+        return;
+      }
 
-        setState(() {
-          _isLive = properties['is_live'] ?? false;
-          _partnerName = properties['driver_name'] ?? properties['owner_full_name'] ?? '';
-          _isLoadingProfile = false;
-          if (properties['is_live'] == true) {
-            _startBackgroundLocationUpdates();
+      print('📡 Fetching partner profile from: $apiBaseUrl/users/partner/profile/');
+      final response = await http.get(
+        Uri.parse('$apiBaseUrl/users/partner/profile/'),
+        headers: {'Authorization': 'Token $token'},
+      ).timeout(const Duration(seconds: 10));
+
+      print('📡 Partner profile response status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('Partner Profile Response: $data');
+        final properties = data['properties'];
+        final isApproved = properties['is_verified'] == true;
+        if (!isApproved && mounted) {
+          Navigator.pushReplacementNamed(context, '/verify');
+          return;
+        } else {
+          final partnerId = data['id'];
+          await prefs.setInt('partner_id', partnerId);
+          
+          try {
+            final walletResponse = await http.get(
+              Uri.parse('$apiBaseUrl/wallet/partner-wallet/$partnerId/'),
+              headers: {'Authorization': 'Token $token'},
+            ).timeout(const Duration(seconds: 10));
+
+            if (walletResponse.statusCode == 200) {
+              final walletData = json.decode(walletResponse.body);
+              print('Partner Wallet: $walletData');
+              if (mounted) {
+                setState(() {
+                  _ridesRemaining = walletData['rides_remaining'] ?? 0;
+                  _walletBalance = double.tryParse(walletData['balance'].toString()) ?? 0.0;
+                  _walletValidUntil = walletData['valid_until'];
+                });
+              }
+            }
+          } catch (walletError) {
+            print('⚠️ Error fetching wallet: $walletError');
+            // Continue even if wallet fetch fails
           }
+
+          if (mounted) {
+            setState(() {
+              _isLive = properties['is_live'] ?? false;
+              _partnerName = properties['driver_name'] ?? properties['owner_full_name'] ?? '';
+              _isLoadingProfile = false;
+              if (properties['is_live'] == true) {
+                _startBackgroundLocationUpdates();
+              }
+            });
+          }
+        }
+      } else if (response.statusCode == 401) {
+        // Token is invalid or expired - clear it and redirect to login
+        print('❌ Invalid token (401) - clearing token and redirecting to login');
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('auth_token');
+        await prefs.remove('partner_id');
+        // Clear any stale ride state
+        await PartnerRideStateManager.clearRideState();
+        
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/login');
+        }
+      } else {
+        print('❌ Failed to fetch partner profile: ${response.statusCode} - ${response.body}');
+        if (mounted) {
+          setState(() {
+            _isLoadingProfile = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('❌ Error in _fetchPartnerDetails: $e');
+      // Always set loading to false on error
+      if (mounted) {
+        setState(() {
+          _isLoadingProfile = false;
         });
       }
-    } else {
-      setState(() {
-        _isLoadingProfile = false;
-      });
     }
   }
 

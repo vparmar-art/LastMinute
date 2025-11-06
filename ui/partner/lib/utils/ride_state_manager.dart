@@ -69,15 +69,24 @@ class PartnerRideState {
   bool get isActive {
     if (bookingId == null || status == null) return false;
     
-    // Check if the ride state is recent (within last 2 hours)
+    // Check if the ride state is recent (within last 1 hour - more strict)
+    // This prevents showing stale bookings
     if (lastUpdated != null) {
       final now = DateTime.now();
       final difference = now.difference(lastUpdated!);
-      if (difference.inHours > 2) return false;
+      // Reduce to 1 hour to be more aggressive about clearing stale state
+      if (difference.inHours > 1) {
+        print('⚠️ Ride state is too old (${difference.inHours} hours), marking as inactive');
+        return false;
+      }
     }
     
     // Check if status indicates an active ride
-    return ['created', 'arriving', 'in_transit'].contains(status);
+    final isActiveStatus = ['created', 'arriving', 'in_transit'].contains(status);
+    if (!isActiveStatus) {
+      print('⚠️ Ride state status is not active: $status');
+    }
+    return isActiveStatus;
   }
 
   bool get isCompleted {
@@ -144,6 +153,17 @@ class PartnerRideStateManager {
       return null;
     }
     
+    // Validate booking exists before returning route
+    // This prevents showing screens for non-existent bookings
+    if (rideState.bookingId == null) {
+      await clearRideState();
+      return null;
+    }
+    
+    // Note: We don't validate booking status here to avoid blocking the app
+    // The individual screens (DropScreen, PickupScreen) will validate on their own
+    // This just restores navigation state if there's an active ride state
+    
     switch (rideState.status) {
       case 'created':
         return {
@@ -173,6 +193,7 @@ class PartnerRideStateManager {
           }
         };
       case 'completed':
+      case 'cancelled':
         await clearRideState();
         return null;
       default:

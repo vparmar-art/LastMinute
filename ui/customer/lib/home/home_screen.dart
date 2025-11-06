@@ -27,6 +27,8 @@ class BookingData {
   int? capacityKg;
   int? boxes;
   bool? helper_required;
+  DateTime? pickupTime;
+  DateTime? dropTime;
 
   Map<String, dynamic> toJson() {
     return {
@@ -49,6 +51,8 @@ class BookingData {
       'capacityKg': capacityKg,
       'boxes': boxes,
       'helper_required': helper_required,
+      'pickup_time': pickupTime?.toIso8601String(),
+      'drop_time': dropTime?.toIso8601String(),
     };
   }
 }

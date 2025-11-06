@@ -236,16 +236,36 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                   try {
                     final prefs = await SharedPreferences.getInstance();
                     final customer_id = prefs.getInt('customer');
+                    
+                    if (customer_id == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please login again. Customer ID not found.')),
+                      );
+                      setState(() => _isLoading = false);
+                      return;
+                    }
+                    
                     widget.bookingData.description = _descriptionController.text;
                     widget.bookingData.instructions = _instructionsController.text;
                     widget.bookingData.distanceKm = widget.bookingData.distanceKm;
-                    widget.bookingData.customer = customer_id?.toString();
+                    widget.bookingData.customer = customer_id.toString(); // Ensure it's a string
                     widget.bookingData.boxes = int.tryParse(_boxesController.text);
                     widget.bookingData.helper_required = _helperRequired;
 
                     // Prepare payload
                     final payload = widget.bookingData.toJson();
+                    
+                    // Ensure customer is in the payload (even if null)
+                    if (payload['customer'] == null) {
+                      payload['customer'] = customer_id.toString();
+                    }
+                    
+                    // Calculate pickup_time and drop_time
+                    DateTime pickupTime;
+                    DateTime dropTime;
+                    
                     if (_selectedBookingType == 1) {
+                      // Scheduled booking
                       final dt = DateTime(
                         _scheduledDate!.year,
                         _scheduledDate!.month,
@@ -253,11 +273,30 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                         _scheduledTime!.hour,
                         _scheduledTime!.minute,
                       );
+                      pickupTime = dt;
                       payload['booking_type'] = 'scheduled';
                       payload['scheduled_time'] = dt.toIso8601String();
                     } else {
+                      // Immediate booking - use current time
+                      pickupTime = DateTime.now();
                       payload['booking_type'] = 'immediate';
                     }
+                    
+                    // Calculate estimated drop_time based on distance
+                    // Estimate: average 30 km/h in city, add 10 minutes for pickup/drop
+                    if (widget.bookingData.distanceKm != null && widget.bookingData.distanceKm! > 0) {
+                      final estimatedMinutes = (widget.bookingData.distanceKm! / 30.0) * 60 + 10;
+                      dropTime = pickupTime.add(Duration(minutes: estimatedMinutes.toInt()));
+                    } else {
+                      // Default: 1 hour after pickup
+                      dropTime = pickupTime.add(const Duration(hours: 1));
+                    }
+                    
+                    // Set pickup_time and drop_time in payload
+                    payload['pickup_time'] = pickupTime.toIso8601String();
+                    payload['drop_time'] = dropTime.toIso8601String();
+                    
+                    print('📦 Booking payload: $payload');
 
                     final uri = Uri.parse('$apiBaseUrl/bookings/start/');
                     final response = await http.post(

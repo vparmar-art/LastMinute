@@ -20,6 +20,7 @@ from users.serializers import PartnerSerializer  # ensure this import exists
 from django.utils import timezone
 from users.sns import send_sms
 from users.utils import update_partner_location
+from vehicles.models import VehicleType
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +69,37 @@ class PartnerSendOTPView(APIView):
 
         logger.info(f"OTP generated for {phone_number} - {code}")
 
-        send_sms(f"+91{phone_number}", f"OTP generated for {phone_number} - {code}")
+        # Try to send SMS, but don't fail if it doesn't work (especially in local dev)
+        import os
+        local_dev = os.getenv('LOCAL_DEV', 'False').lower() == 'true'
+        sms_sent = False
+        
+        try:
+            send_sms(f"+91{phone_number}", f"OTP generated for {phone_number} - {code}")
+            logger.info(f"SMS sent successfully to {phone_number}")
+            sms_sent = True
+        except Exception as sms_error:
+            logger.warning(f"Failed to send SMS to {phone_number}: {sms_error}")
+            logger.warning(f"OTP is still generated and stored: {code}")
+            # In local dev, we can still return success even if SMS fails
+            # The OTP is stored in the database and can be verified
+            if local_dev:
+                logger.info("Local dev mode: Continuing despite SMS failure")
+                logger.info(f"⚠️  LOCAL DEV: OTP for {phone_number} is {code} (SMS not sent)")
+            else:
+                # In production, SMS failure is more critical
+                return Response(
+                    {"error": "Failed to send SMS. Please try again."}, 
+                    status=500
+                )
 
-        return Response({"message": "OTP sent successfully"})
+        response_data = {"message": "OTP sent successfully"}
+        # In local dev, include OTP in response if SMS failed (for testing)
+        if local_dev and not sms_sent:
+            response_data["otp"] = code
+            response_data["note"] = "SMS not sent in local dev mode. Use this OTP for testing."
+
+        return Response(response_data)
 
 
 class PartnerVerifyOTPView(APIView):
@@ -118,7 +147,12 @@ class PartnerVerifyOTPView(APIView):
                 partner.save()
                 logger.info(f"Successfully registered device for partner {phone_number}. Endpoint ARN: {endpoint_arn}")
             except Exception as e:
-                logger.error(f"Failed to register device with SNS for {phone_number}: {str(e)}")
+                error_msg = str(e)
+                # Check if this is an account suspension error (already logged in detail by sns.py)
+                if 'account is suspended' in error_msg.lower() or 'AWS Account Suspended' in error_msg:
+                    logger.warning(f"Device registration skipped for {phone_number}: AWS account suspended (see detailed error above)")
+                else:
+                    logger.error(f"Failed to register device with SNS for {phone_number}: {error_msg}")
                 # Don't fail the login, just log the error
                 # The partner can still login but won't receive push notifications
 
@@ -162,15 +196,42 @@ class PartnerProfileView(APIView):
             return Response({'error': 'Invalid token'}, status=401)
 
         data = request.data
+        
+        # Log the incoming data for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Partner profile update request data: {data}")
 
-        # partner is trying to go live
-        if partner.is_live == False and data['is_live'] == True:
+        # partner is trying to go live - check wallet balance
+        if 'is_live' in data and partner.is_live == False and data['is_live'] == True:
             can_go_live = check_partner_wallet(partner)
             if not can_go_live:
                 return Response({'error': 'No active plan. Please recharge to go live.'}, status=403)
 
+        # Handle vehicle_type separately (it's a ForeignKey, not a string)
+        # Can accept either vehicle type ID (integer) or name (string)
+        # Also handle None/null values (to clear the vehicle type)
+        if 'vehicle_type' in data:
+            vehicle_type_value = data['vehicle_type']
+            # Allow None/null to clear the vehicle type
+            if vehicle_type_value is None or vehicle_type_value == '' or vehicle_type_value == 'null':
+                partner.vehicle_type = None
+            else:
+                try:
+                    # Try as ID first (if it's a number)
+                    if isinstance(vehicle_type_value, int) or (isinstance(vehicle_type_value, str) and vehicle_type_value.isdigit()):
+                        vehicle_type = VehicleType.objects.get(id=int(vehicle_type_value))
+                    else:
+                        # Try as name (string)
+                        vehicle_type = VehicleType.objects.get(name=str(vehicle_type_value))
+                    partner.vehicle_type = vehicle_type
+                except VehicleType.DoesNotExist:
+                    return Response({'error': f'Invalid vehicle type: {vehicle_type_value}. Valid types: bike, auto, mini_truck, truck'}, status=400)
+                except ValueError:
+                    return Response({'error': f'Invalid vehicle type format: {vehicle_type_value}'}, status=400)
+        
         # Update partner fields safely, only if keys exist
-        for field in ['owner_full_name', 'vehicle_type', 'vehicle_number', 'registration_number',
+        for field in ['owner_full_name', 'vehicle_number', 'registration_number',
                       'driver_name', 'driver_phone', 'driver_license', 'is_agreed_to_terms',
                       'current_step', 'is_rejected', 'rejection_reason', 'is_live']:
             if field in data:
@@ -181,7 +242,12 @@ class PartnerProfileView(APIView):
             partner.selfie = request.FILES['selfie']
 
         # Save the updated partner object
-        partner.save()
+        try:
+            partner.save()
+            logger.info(f"Partner profile updated successfully for partner: {partner.phone_number}")
+        except Exception as e:
+            logger.error(f"Error saving partner profile: {str(e)}")
+            return Response({'error': f'Failed to save profile: {str(e)}'}, status=500)
 
         return Response({'message': 'Profile updated successfully'})
 

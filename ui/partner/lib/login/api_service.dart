@@ -4,7 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../constants.dart';
 
 class ApiService {
-  static const String baseUrl = '$apiBaseUrl/users/partner';
+  static String get baseUrl => '$apiBaseUrl/users/partner';
 
   Future<String> sayHello() async {
     final response = await http.get(Uri.parse('$baseUrl/hello/'));

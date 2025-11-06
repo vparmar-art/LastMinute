@@ -53,7 +53,15 @@ class VerificationData {
       final data = responseData['properties'];
 
       ownerFullName = data['owner_full_name'];
-      vehicleType = data['vehicle_type'];
+      // Handle vehicle_type as either int (ID) or string (name)
+      final vehicleTypeValue = data['vehicle_type'];
+      if (vehicleTypeValue != null) {
+        vehicleType = vehicleTypeValue is int 
+            ? null  // If it's an ID, we'll need to look it up by ID, but for now set to null
+            : vehicleTypeValue.toString();  // Convert to string if it's already a string
+      } else {
+        vehicleType = null;
+      }
       vehicleNumber = data['vehicle_number'];
       registrationNumber = data['registration_number'];
       driverFullName = data['driver_name'];

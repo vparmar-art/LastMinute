@@ -5,5 +5,6 @@
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>  <!-- Emulator's localhost -->
         <domain includeSubdomains="true">192.168.0.101</domain>  <!-- Your local IP -->
+        <domain includeSubdomains="true">lastminute-alb-233306800.us-east-1.elb.amazonaws.com</domain>  <!-- Production ALB -->
     </domain-config>
 </network-security-config>

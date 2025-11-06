@@ -4,18 +4,91 @@
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "512",
   "memory": "1024",
-  "executionRoleArn": "arn:aws:iam::054037119505:role/ecsTaskExecutionRole",
+  "executionRoleArn": "arn:aws:iam::957118235304:role/lastminute-us-east-1-ecs-task-exec",
+  "taskRoleArn": "arn:aws:iam::957118235304:role/lastminute-us-east-1-ecs-task-exec",
   "containerDefinitions": [
     {
-      "name": "last-minute-backend",
-      "image": "REPLACE_ME",
+      "name": "app",
+      "image": "957118235304.dkr.ecr.us-east-1.amazonaws.com/lastminute-backend:latest",
       "portMappings": [
         {
           "containerPort": 8000,
           "protocol": "tcp"
         }
       ],
-      "essential": true
+      "essential": true,
+      "environment": [
+        {
+          "name": "DEBUG",
+          "value": "False"
+        },
+        {
+          "name": "ALLOWED_HOSTS",
+          "value": "*"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "lastminute"
+        },
+        {
+          "name": "DB_USER",
+          "value": "appuser"
+        },
+        {
+          "name": "DB_HOST",
+          "value": "lastminute-pg.c0jy4eimmagt.us-east-1.rds.amazonaws.com"
+        },
+        {
+          "name": "DB_PORT",
+          "value": "5432"
+        },
+        {
+          "name": "AWS_MEDIA_BUCKET_NAME",
+          "value": "lastminute-media-root"
+        },
+        {
+          "name": "AWS_STORAGE_BUCKET_NAME",
+          "value": "zappa-deployments-last-minute"
+        },
+        {
+          "name": "AWS_S3_REGION_NAME",
+          "value": "us-east-1"
+        },
+        {
+          "name": "AWS_SNS_ARN",
+          "value": "arn:aws:sns:us-east-1:957118235304:app/GCM/last-minute"
+        },
+        {
+          "name": "LOCAL_DEV",
+          "value": "False"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "SECRET_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-1:957118235304:parameter/lastminute/SECRET_KEY"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:ssm:us-east-1:957118235304:parameter/lastminute/DB_PASSWORD"
+        },
+        {
+          "name": "AWS_ACCESS_KEY_ID",
+          "valueFrom": "arn:aws:ssm:us-east-1:957118235304:parameter/lastminute/AWS_ACCESS_KEY_ID"
+        },
+        {
+          "name": "AWS_SECRET_ACCESS_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-1:957118235304:parameter/lastminute/AWS_SECRET_ACCESS_KEY"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/last-minute-backend",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
     }
   ]
 }

@@ -19,6 +19,8 @@ class _DropScreenState extends State<DropScreen> {
   double? dropLongitude;
   String? dropAddress;
   String? dropOtp;
+  bool _isValidating = true;
+  bool _isValidBooking = false;
 
   @override
   void initState() {
@@ -39,6 +41,8 @@ class _DropScreenState extends State<DropScreen> {
           }
         });
       }
+      // Validate booking after loading arguments
+      _validateBooking();
     });
   }
 
@@ -79,7 +83,76 @@ class _DropScreenState extends State<DropScreen> {
           dropLongitude = rideState.dropLng;
         }
       });
+      // Validate booking after restoring state
+      _validateBooking();
+    } else if (rideState != null && !rideState.isActive) {
+      // Clear stale ride state
+      await PartnerRideStateManager.clearRideState();
+      _redirectToHome();
     }
+  }
+
+  Future<void> _validateBooking() async {
+    if (bookingId == null) {
+      setState(() {
+        _isValidating = false;
+        _isValidBooking = false;
+      });
+      _redirectToHome();
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('$apiBaseUrl/bookings/$bookingId/'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final booking = jsonDecode(response.body);
+        final status = booking['status'] as String?;
+        
+        // Check if booking is in a valid state for drop screen
+        // Drop screen should only show for 'in_transit' status
+        if (status == 'in_transit') {
+          setState(() {
+            _isValidating = false;
+            _isValidBooking = true;
+          });
+        } else {
+          // Booking is not in transit, clear state and redirect
+          await PartnerRideStateManager.clearRideState();
+          setState(() {
+            _isValidating = false;
+            _isValidBooking = false;
+          });
+          _redirectToHome();
+        }
+      } else {
+        // Booking not found or error
+        await PartnerRideStateManager.clearRideState();
+        setState(() {
+          _isValidating = false;
+          _isValidBooking = false;
+        });
+        _redirectToHome();
+      }
+    } catch (e) {
+      print('Error validating booking: $e');
+      // On error, allow user to stay but show warning
+      setState(() {
+        _isValidating = false;
+        _isValidBooking = true; // Allow user to try
+      });
+    }
+  }
+
+  void _redirectToHome() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    });
   }
 
   Future<void> _persistRideState(String status) async {
@@ -155,6 +228,8 @@ class _DropScreenState extends State<DropScreen> {
                   print('🔁 Response Body: ${response.body}');
 
                   if (response.statusCode == 200) {
+                    // Clear ride state when trip is completed
+                    await PartnerRideStateManager.clearRideState();
                     Navigator.pushReplacementNamed(context, '/home');
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -178,6 +253,64 @@ class _DropScreenState extends State<DropScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Show loading while validating
+    if (_isValidating) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'Drop Location',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.indigo,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Validating booking...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show error if booking is invalid
+    if (!_isValidBooking) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'Drop Location',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.indigo,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              const Text(
+                'No active booking found',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text('Redirecting to home...'),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
+                child: const Text('Go to Home'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -186,6 +319,18 @@ class _DropScreenState extends State<DropScreen> {
         ),
         backgroundColor: Colors.indigo,
         iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            // Don't allow going back, only forward
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please complete the trip or contact support'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          },
+        ),
       ),
       body: Container(
         color: Colors.grey.shade100,

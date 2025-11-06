@@ -12,16 +12,14 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Try to load environment variables from .env.kms file in project root, fallback to .env
+# Load environment variables from .env file for local development
 try:
     from dotenv import load_dotenv
     BASE_DIR = Path(__file__).resolve().parent.parent
-    env_kms_path = os.path.join(BASE_DIR, '..', '.env.kms')
     env_default_path = os.path.join(BASE_DIR, '..', '.env')
-    if os.path.exists(env_kms_path):
-        load_dotenv(dotenv_path=env_kms_path)
-    elif os.path.exists(env_default_path):
+    if os.path.exists(env_default_path):
         load_dotenv(dotenv_path=env_default_path)
     else:
         load_dotenv()  # fallback to default behavior
@@ -29,40 +27,60 @@ except ImportError:
     # python-dotenv not installed, continue without it
     pass
 
-# Import KMS utilities for production
-try:
-    from .kms_utils import get_kms_decryptor
-    KMS_AVAILABLE = True
-except ImportError:
-    KMS_AVAILABLE = False
+# Check if we're in local development mode
+LOCAL_DEV = os.getenv('LOCAL_DEV', 'False').lower() == 'true'
 
-os.environ['GDAL_LIBRARY_PATH'] = '/opt/homebrew/Cellar/gdal/3.11.0/lib/libgdal.dylib'
+# For local development, use local_settings overrides
+if LOCAL_DEV:
+    try:
+        from .local_settings import get_secure_env_var
+        print("Using local development settings")
+    except ImportError:
+        pass
+
+# GDAL library path - set only if not in Docker (where it's in system path)
+if not os.path.exists('/.dockerenv') and os.path.exists('/opt/homebrew/Cellar/gdal'):
+    os.environ['GDAL_LIBRARY_PATH'] = '/opt/homebrew/Cellar/gdal/3.11.0/lib/libgdal.dylib'
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 # BASE_DIR = Path(__file__).resolve().parent.parent
 
 def get_secure_env_var(var_name, default=None):
     """
-    Get environment variable with KMS decryption support
+    Get environment variable.
+    
+    In production (ECS), secrets are automatically decrypted by ECS from SSM Parameter Store
+    and injected as plain environment variables. No additional decryption is needed.
     
     Args:
         var_name (str): Environment variable name
         default: Default value if not found
         
     Returns:
-        str: Decrypted value or default
+        str: Environment variable value or default
     """
-    if KMS_AVAILABLE:
-        decryptor = get_kms_decryptor()
-        return decryptor.get_decrypted_env_var(var_name, default)
-    else:
-        return os.getenv(var_name, default)
+    if LOCAL_DEV:
+        # For local development, check if local_settings provides override
+        try:
+            from .local_settings import get_secure_env_var as local_get_var
+            return local_get_var(var_name, default)
+        except (ImportError, AttributeError):
+            pass
+    
+    # Default: read from environment (works for both local .env and ECS SSM secrets)
+    return os.getenv(var_name, default)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = get_secure_env_var('SECRET_KEY')
+if not SECRET_KEY:
+    raise ValueError(
+        "SECRET_KEY environment variable is not set. "
+        "Please set SECRET_KEY in your ECS task definition or environment variables. "
+        "For AWS ECS, you can use AWS Systems Manager Parameter Store or Secrets Manager."
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG_VALUE = get_secure_env_var('DEBUG', 'False')
@@ -182,16 +200,34 @@ WSGI_APPLICATION = 'main.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': get_secure_env_var('DB_NAME', 'postgres'),
-        'USER': get_secure_env_var('DB_USER', 'vikash'),
-        'PASSWORD': get_secure_env_var('DB_PASSWORD'),
-        'HOST': get_secure_env_var('DB_HOST', 'last-minute-dev.cm96escgy66l.us-east-1.rds.amazonaws.com'),
-        'PORT': get_secure_env_var('DB_PORT', '5432'),
+# Support DATABASE_URL format (from SSM Parameter Store in ECS)
+DATABASE_URL = get_secure_env_var('DATABASE_URL')
+if DATABASE_URL:
+    # Parse DATABASE_URL: postgres://user:password@host:port/dbname
+    import urllib.parse
+    parsed = urllib.parse.urlparse(DATABASE_URL)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.contrib.gis.db.backends.postgis',
+            'NAME': parsed.path[1:],  # Remove leading '/'
+            'USER': parsed.username,
+            'PASSWORD': parsed.password,
+            'HOST': parsed.hostname,
+            'PORT': parsed.port or '5432',
+        }
     }
-}
+else:
+    # Fallback to individual environment variables
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.contrib.gis.db.backends.postgis',
+            'NAME': get_secure_env_var('DB_NAME', 'postgres'),
+            'USER': get_secure_env_var('DB_USER', 'vikash'),
+            'PASSWORD': get_secure_env_var('DB_PASSWORD'),
+            'HOST': get_secure_env_var('DB_HOST', 'last-minute-dev.cm96escgy66l.us-east-1.rds.amazonaws.com'),
+            'PORT': get_secure_env_var('DB_PORT', '5432'),
+        }
+    }
 
 # AUTH_USER_MODEL = 'users.User'
 
@@ -261,7 +297,7 @@ AWS_SECRET_ACCESS_KEY = get_secure_env_var('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = get_secure_env_var('AWS_STORAGE_BUCKET_NAME', 'zappa-deployments-last-minute')
 AWS_S3_REGION_NAME = get_secure_env_var('AWS_S3_REGION_NAME', 'us-east-1')
 AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
-AWS_SNS_ARN = get_secure_env_var('AWS_SNS_ARN', 'arn:aws:sns:us-east-1:054037119505:app/GCM/notify-driver')
+AWS_SNS_ARN = get_secure_env_var('AWS_SNS_ARN', 'arn:aws:sns:us-east-1:957118235304:app/GCM/last-minute')
 
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 STATIC_URL = '/static/'

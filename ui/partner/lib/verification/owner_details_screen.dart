@@ -21,8 +21,10 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchVehicleTypes();
-    _fetchOwnerDetails();
+    // Fetch vehicle types first, then owner details
+    _fetchVehicleTypes().then((_) {
+      _fetchOwnerDetails();
+    });
   }
 
   // Fetch vehicle types
@@ -65,9 +67,26 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
         _vehicleNumberController.text = properties['vehicle_number'] ?? '';
         _registrationNumberController.text = properties['registration_number'] ?? '';
 
+        // Handle vehicle_type as either int (ID) or string (name)
         final fetchedVehicleType = properties['vehicle_type'];
-        final exists = _vehicleTypes.any((v) => v['name'] == fetchedVehicleType);
-        _selectedVehicleType = exists ? fetchedVehicleType : null;
+        String? vehicleTypeName;
+        
+        if (fetchedVehicleType != null) {
+          if (fetchedVehicleType is int) {
+            // If it's an ID, find the vehicle type by ID
+            final vehicleType = _vehicleTypes.firstWhere(
+              (v) => v['id'] == fetchedVehicleType,
+              orElse: () => {},
+            );
+            vehicleTypeName = vehicleType['name'];
+          } else {
+            // If it's already a string/name, use it directly
+            vehicleTypeName = fetchedVehicleType.toString();
+          }
+        }
+        
+        final exists = vehicleTypeName != null && _vehicleTypes.any((v) => v['name'] == vehicleTypeName);
+        _selectedVehicleType = exists ? vehicleTypeName : null;
       });
     } else {
       print('Failed to fetch owner details');
@@ -80,19 +99,26 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
     final token = prefs.getString('auth_token');
     if (token == null) return;
 
+    // Build request body, only include vehicle_type if selected
+    final requestBody = <String, dynamic>{
+      'owner_full_name': _ownerFullNameController.text,
+      'vehicle_number': _vehicleNumberController.text,
+      'registration_number': _registrationNumberController.text,
+      'current_step': 2
+    };
+    
+    // Only add vehicle_type if it's selected
+    if (_selectedVehicleType != null && _selectedVehicleType!.isNotEmpty) {
+      requestBody['vehicle_type'] = _selectedVehicleType;
+    }
+
     final response = await http.put(
       Uri.parse('$apiBaseUrl/users/partner/profile/'),
       headers: {
         'Authorization': 'Token $token',
-        'Content-Type': 'application/json',  // Ensure this header is set
+        'Content-Type': 'application/json',
       },
-      body: json.encode({
-        'owner_full_name': _ownerFullNameController.text,
-        'vehicle_type': _selectedVehicleType,
-        'vehicle_number': _vehicleNumberController.text,
-        'registration_number': _registrationNumberController.text,
-        'current_step': 2
-      }),
+      body: json.encode(requestBody),
     );
 
     if (response.statusCode == 200) {
@@ -101,7 +127,17 @@ class _OwnerDetailsScreenState extends State<OwnerDetailsScreen> {
         Navigator.pushNamed(context, '/driver-details');
       }
     } else {
-      print('Failed to save owner details');
+      final errorBody = response.body;
+      print('Failed to save owner details: ${response.statusCode}');
+      print('Error response: $errorBody');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save: ${response.statusCode} - ${errorBody.length > 100 ? errorBody.substring(0, 100) : errorBody}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

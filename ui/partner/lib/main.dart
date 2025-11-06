@@ -234,34 +234,65 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
+    // Use addPostFrameCallback to ensure context is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkLoginStatus();
+    });
   }
 
   Future<void> _checkLoginStatus() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    // print('🚀 SplashScreen: Token found: ${token != null && token.isNotEmpty}');
-    
-    if (token != null && token.isNotEmpty) {
-      // Check if there's an active ride
-      // print('🚀 SplashScreen: Calling getInitialRouteWithArgs()...');
-      final routeInfo = await PartnerRideStateManager.getInitialRouteWithArgs();
-      // print('🚀 SplashScreen: Route info: $routeInfo');
+    try {
+      if (!mounted) return;
       
-      if (routeInfo != null) {
-        // print('🚀 SplashScreen: Navigating to ${routeInfo['route']}');
-        Navigator.pushReplacementNamed(
-          context,
-          routeInfo['route'],
-          arguments: routeInfo['arguments'],
-        );
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      print('🚀 SplashScreen: Token found: ${token != null && token.isNotEmpty}');
+      
+      if (token != null && token.isNotEmpty) {
+        // Check if there's an active ride
+        print('🚀 SplashScreen: Calling getInitialRouteWithArgs()...');
+        final routeInfo = await PartnerRideStateManager.getInitialRouteWithArgs();
+        print('🚀 SplashScreen: Route info: $routeInfo');
+        
+        if (!mounted) return;
+        
+        // Use addPostFrameCallback to ensure navigation happens after build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          
+          if (routeInfo != null) {
+            print('🚀 SplashScreen: Navigating to ${routeInfo['route']}');
+            try {
+              Navigator.pushReplacementNamed(
+                context,
+                routeInfo['route'],
+                arguments: routeInfo['arguments'],
+              );
+            } catch (e) {
+              print('❌ SplashScreen: Navigation error: $e');
+              Navigator.pushReplacementNamed(context, '/home');
+            }
+          } else {
+            print('🚀 SplashScreen: No route info, going to home');
+            Navigator.pushReplacementNamed(context, '/home');
+          }
+        });
       } else {
-        // print('🚀 SplashScreen: No route info, going to home');
-        Navigator.pushReplacementNamed(context, '/home');
+        print('🚀 SplashScreen: No token, going to login');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/login');
+          }
+        });
       }
-    } else {
-      // print('🚀 SplashScreen: No token, going to login');
-      Navigator.pushReplacementNamed(context, '/login');
+    } catch (e) {
+      print('❌ SplashScreen: Error in _checkLoginStatus: $e');
+      // Fallback to home on error
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      });
     }
   }
 

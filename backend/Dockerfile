@@ -26,7 +26,9 @@ RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
 # Collect static files for S3
-RUN python manage.py collectstatic --noinput
+# Note: SECRET_KEY is required for collectstatic but only available at runtime
+# Use a temporary placeholder during build - it won't be used in production
+RUN SECRET_KEY=build-time-placeholder-key-not-used-in-production python manage.py collectstatic --noinput
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
