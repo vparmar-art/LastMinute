@@ -21,7 +21,23 @@ cat <<EOF > /tmp/media-bucket-policy.json
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "AllowAccountListPrefix",
+      "Sid": "PublicReadAccess",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::${BUCKET}/*"
+    },
+    {
+      "Sid": "Statement1",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::${ACCOUNT_ID}:user/vikash"
+      },
+      "Action": "s3:*",
+      "Resource": "arn:aws:s3:::${BUCKET}/*"
+    },
+    {
+      "Sid": "AllowEcsTaskListPrefix",
       "Effect": "Allow",
       "Principal": {
         "AWS": ["${TASK_ROLE}", "${ACCOUNT_ROOT}"]
@@ -35,7 +51,7 @@ cat <<EOF > /tmp/media-bucket-policy.json
       }
     },
     {
-      "Sid": "AllowAccountObjects",
+      "Sid": "AllowEcsTaskObjects",
       "Effect": "Allow",
       "Principal": {
         "AWS": ["${TASK_ROLE}", "${ACCOUNT_ROOT}"]

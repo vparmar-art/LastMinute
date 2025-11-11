@@ -71,14 +71,6 @@
         {
           "name": "DB_PASSWORD",
           "valueFrom": "arn:aws:ssm:us-east-1:957118235304:parameter/lastminute/DB_PASSWORD"
-        },
-        {
-          "name": "AWS_ACCESS_KEY_ID",
-          "valueFrom": "arn:aws:ssm:us-east-1:957118235304:parameter/lastminute/AWS_ACCESS_KEY_ID"
-        },
-        {
-          "name": "AWS_SECRET_ACCESS_KEY",
-          "valueFrom": "arn:aws:ssm:us-east-1:957118235304:parameter/lastminute/AWS_SECRET_ACCESS_KEY"
         }
       ],
       "logConfiguration": {
