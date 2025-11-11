@@ -1,9 +1,10 @@
 from django.contrib import admin
+from django.contrib.gis.admin import GISModelAdmin
+from django.utils.html import format_html
 from users.models.customer import Customer, CustomerOTP
 from users.models.partner import Partner, PartnerOTP
-from users.models.token import Token
 from users.models.seller import Seller
-from django.contrib.gis.admin import GISModelAdmin
+from users.models.token import Token
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
@@ -35,6 +36,18 @@ class PartnerAdmin(GISModelAdmin):
     )
     search_fields = ('phone_number',)
     list_filter = ('created_at',)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if obj and obj.selfie and 'selfie' in form.base_fields:
+            try:
+                url = obj.selfie.url
+                form.base_fields['selfie'].help_text = format_html(
+                    '<a href="{0}" target="_blank">View current selfie</a>', url
+                )
+            except ValueError:
+                pass
+        return form
 
 
 @admin.register(PartnerOTP)

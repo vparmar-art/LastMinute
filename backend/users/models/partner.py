@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.gis.db import models as geomodels
 from vehicles.models import VehicleType
+from main.storage_backends import MediaStorage
 
 class Partner(models.Model):
     phone_number = models.CharField(max_length=15, unique=True)
@@ -20,9 +21,9 @@ class Partner(models.Model):
     device_endpoint_arn = models.CharField(max_length=512, blank=True, null=True)
 
     # Documents
-    license_document = models.FileField(upload_to='documents/licenses/', null=True, blank=True)
-    registration_document = models.FileField(upload_to='documents/registration/', null=True, blank=True)
-    selfie = models.ImageField(upload_to='documents/selfies/', null=True, blank=True)
+    license_document = models.FileField(upload_to='documents/licenses/', storage=MediaStorage(), null=True, blank=True)
+    registration_document = models.FileField(upload_to='documents/registration/', storage=MediaStorage(), null=True, blank=True)
+    selfie = models.ImageField(upload_to='documents/selfies/', storage=MediaStorage(), null=True, blank=True)
 
     # Progress tracking
     current_step = models.PositiveIntegerField(default=1)

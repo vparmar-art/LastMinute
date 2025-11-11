@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import '../constants.dart';
+import 'verification_controller.dart';
 
 class VerificationScreen extends StatelessWidget {
   final bool isRejected;
@@ -14,38 +11,9 @@ class VerificationScreen extends StatelessWidget {
     this.rejectionReason,
   }) : super(key: key);
 
-  Future<bool> resubmitVerification() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    if (token == null) {
-      print('No token found for resubmission');
-      return false;
-    }
-
-    final response = await http.put(
-      Uri.parse('$apiBaseUrl/users/partner/profile/'),
-      headers: {
-        'Authorization': 'Token $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({
-        'current_step': 1,
-        'is_rejected': false,
-        'rejection_reason': '',
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      print('Verification data reset successfully');
-      return true;
-    } else {
-      print('Failed to reset verification: ${response.body}');
-      return false;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final controller = VerificationController();
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -80,7 +48,7 @@ class VerificationScreen extends StatelessWidget {
                   const SizedBox(height: 20),
                   ElevatedButton.icon(
                     onPressed: () async {
-                      bool success = await resubmitVerification();
+                      bool success = await controller.resubmitVerification();
                       if (success) {
                         Navigator.pushNamed(context, '/owner-details');
                       }

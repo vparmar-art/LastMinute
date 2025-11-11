@@ -44,7 +44,7 @@
         },
         {
           "name": "AWS_MEDIA_BUCKET_NAME",
-          "value": "lastminute-media-root"
+          "value": "lastminute-us-east-1-media"
         },
         {
           "name": "AWS_STORAGE_BUCKET_NAME",

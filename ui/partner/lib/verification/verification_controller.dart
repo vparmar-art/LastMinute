@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'verification_screen.dart';
 import '../constants.dart';
 
 class VerificationData {
@@ -104,15 +103,7 @@ class VerificationController {
       } else if (data.currentStep == 2) {
         Navigator.pushNamed(context, '/driver-details');
       } else if (data.currentStep == 3) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => VerificationScreen(
-              isRejected: data.isRejected,
-              rejectionReason: data.rejectionReason,
-            ),
-          ),
-        );
+        Navigator.pushNamed(context, '/verify-in-progress');
       }
     } catch (e) {
       print('Error loading verification data: $e');
@@ -133,5 +124,38 @@ class VerificationController {
     data.driverLicenseNumber = null;
     data.isAgreedToTerms = false;
     data.currentStep = 1;  // Reset current step
+  }
+
+  Future<bool> resubmitVerification() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) {
+      print('No token found for resubmission');
+      return false;
+    }
+
+    final response = await http.put(
+      Uri.parse('$apiBaseUrl/users/partner/profile/'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'current_step': 1,
+        'is_rejected': false,
+        'rejection_reason': '',
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      data.currentStep = 1;
+      data.isRejected = false;
+      data.rejectionReason = null;
+      print('Verification data reset successfully');
+      return true;
+    } else {
+      print('Failed to reset verification: ${response.body}');
+      return false;
+    }
   }
 }

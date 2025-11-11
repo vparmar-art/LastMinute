@@ -5,6 +5,9 @@ from users.models.partner import Partner
 class PartnerSerializer(GeoFeatureModelSerializer):
     # Serialize vehicle_type as name instead of ID
     vehicle_type = serializers.SerializerMethodField()
+    license_document = serializers.SerializerMethodField()
+    registration_document = serializers.SerializerMethodField()
+    selfie = serializers.SerializerMethodField()
     
     class Meta:
         model = Partner
@@ -23,4 +26,28 @@ class PartnerSerializer(GeoFeatureModelSerializer):
         """Return vehicle type name instead of ID"""
         if obj.vehicle_type:
             return obj.vehicle_type.name
+        return None
+
+    def get_license_document(self, obj):
+        if obj.license_document:
+            try:
+                return obj.license_document.url
+            except ValueError:
+                pass
+        return None
+
+    def get_registration_document(self, obj):
+        if obj.registration_document:
+            try:
+                return obj.registration_document.url
+            except ValueError:
+                pass
+        return None
+
+    def get_selfie(self, obj):
+        if obj.selfie:
+            try:
+                return obj.selfie.url
+            except ValueError:
+                pass
         return None

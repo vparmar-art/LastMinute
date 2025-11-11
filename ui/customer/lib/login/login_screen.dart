@@ -170,7 +170,7 @@ void _startCooldownTimer() {
                                   ],
                                   cursorColor: AppColors.text,
                                   enableInteractiveSelection: false,
-                                  style: AppTextStyles.maskedInput,
+                                  style: AppTextStyles.maskedInput.copyWith(color: Colors.transparent),
                                   decoration: const InputDecoration(
                                     isDense: true,
                                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),

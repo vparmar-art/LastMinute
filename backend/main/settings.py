@@ -288,15 +288,19 @@ SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-AWS_MEDIA_BUCKET_NAME = get_secure_env_var('AWS_MEDIA_BUCKET_NAME', 'lastminute-media-root')
-MEDIA_URL = f'https://{AWS_MEDIA_BUCKET_NAME}.s3.amazonaws.com/'
+AWS_MEDIA_BUCKET_NAME = get_secure_env_var('AWS_MEDIA_BUCKET_NAME', 'lastminute-us-east-1-media')
+AWS_MEDIA_CUSTOM_DOMAIN = get_secure_env_var('AWS_MEDIA_CUSTOM_DOMAIN')
+DEFAULT_FILE_STORAGE = 'main.storage_backends.MediaStorage'
+AWS_MEDIA_DOMAIN = AWS_MEDIA_CUSTOM_DOMAIN or f'{AWS_MEDIA_BUCKET_NAME}.s3.amazonaws.com'
+MEDIA_URL = f'https://{AWS_MEDIA_DOMAIN}/'
 
 AWS_ACCESS_KEY_ID = get_secure_env_var('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = get_secure_env_var('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = get_secure_env_var('AWS_STORAGE_BUCKET_NAME', 'zappa-deployments-last-minute')
 AWS_S3_REGION_NAME = get_secure_env_var('AWS_S3_REGION_NAME', 'us-east-1')
 AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = True
 AWS_SNS_ARN = get_secure_env_var('AWS_SNS_ARN', 'arn:aws:sns:us-east-1:957118235304:app/GCM/last-minute')
 
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'

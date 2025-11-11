@@ -195,7 +195,7 @@ class PartnerProfileView(APIView):
         except Token.DoesNotExist:
             return Response({'error': 'Invalid token'}, status=401)
 
-        data = request.data
+        data = request.data.copy()
         
         # Log the incoming data for debugging
         import logging
@@ -230,6 +230,7 @@ class PartnerProfileView(APIView):
                 except ValueError:
                     return Response({'error': f'Invalid vehicle type format: {vehicle_type_value}'}, status=400)
         
+        data['is_rejected'] = False
         # Update partner fields safely, only if keys exist
         for field in ['owner_full_name', 'vehicle_number', 'registration_number',
                       'driver_name', 'driver_phone', 'driver_license', 'is_agreed_to_terms',
