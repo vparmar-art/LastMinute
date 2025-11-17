@@ -104,6 +104,11 @@ def send_push_notification(endpoint_arn, payload):
     
     Returns the SNS publish response or raises an exception on failure.
     """
+    # SNS service is currently disabled - return mock success response
+    logger.info(f"🔇 SNS service is disabled. Skipping push notification to {endpoint_arn[:50]}...")
+    logger.debug(f"Would have sent payload: {json.dumps(payload)}")
+    return {'MessageId': 'disabled-mock-message-id'}
+    
     # Check if this might be a mock endpoint ARN (from local development)
     # Log a warning but still try to send - SNS will reject it if invalid
     if 'mock-app' in endpoint_arn or '123456789012' in endpoint_arn:
